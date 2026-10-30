@@ -21,6 +21,7 @@ dependencies = [
     "gymnasium",
     # Remote inference
     "openai",
+    "httpx>=0.27,<1",
     "requests",
     "json_numpy",
     "pyzmq",
@@ -62,10 +63,7 @@ isaac51 = [
     "isaacsim[all,extscache]==5.1.0",
 ]
 analysis = ["sbi"]
-# httpx: not used directly, but starlette.testclient.TestClient (used by the
-# dashboard's route tests) hard-requires it at import time. Previously only
-# ever present incidentally via other extras' transitive deps.
-test = ["pytest", "httpx"]
+test = ["pytest"]
 all = ["sbi", "pytest"]
 
 [project.scripts]

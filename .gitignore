@@ -44,3 +44,13 @@ pyrightconfig.json
 .claude/scheduled_tasks.lock
 .claude/agents
 .claude/commands
+
+# Local RoboAPI credentials, environments and run evidence
+.local/
+.env
+.env.*
+!.env.example
+.venv-test/
+credentials/
+output/
+*.mp4
