@@ -16,10 +16,13 @@ Install RoboLab's Isaac Sim 5.1 / Isaac Lab 2.3.2 environment using the
 [upstream installation guide](https://github.com/NVLabs/RoboLab/tree/b6cfcf6ccd2113c4cd1216d35b33024a7d5691da#installation).
 The calibrated camera requires the native `OmniLensDistortionFthetaAPI` schema.
 
-Copy [.env.example](.env.example) to `.env.local` and set paths to your Panda USD,
-tool assembly USD, camera calibration and actuator calibration. Keep credentials
-in the configured private token file. These assets and credentials are local
-installation inputs and are excluded from version control and Docker builds.
+Download the versioned [RoboAPI rig asset bundle](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)
+and follow the [download and verification steps](docs/roboapi/setup.md#download-the-rig-assets)
+to install the tool assembly, camera calibration and actuator calibration.
+Copy [.env.example](.env.example) to `.env.local` and set the path to your local
+Panda USD, including its referenced geometry. Keep credentials in the configured
+private token file. Installed assets and credentials are excluded from version
+control and Docker builds.
 
 ```bash
 set -a

@@ -16,6 +16,39 @@ Authorization header; treat output directories as private observations.
 
 ## Required assets
 
+### Download the rig assets
+
+The [v1.0.0 rig release](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)
+provides `assembly.usdc`, `camera.json` and `actuator.json`, together with a
+portable manifest, per-file SHA-256 checksums and coordinate-system notes.
+Run these commands from the repository root:
+
+```bash
+mkdir -p .local/roboapi/downloads .local/roboapi/rig
+cd .local/roboapi/downloads
+curl --fail --location --output roboapi-rig-v1.0.0.tar.gz \
+  https://github.com/huashanjian/roboapi-playground/releases/download/roboapi-rig-v1.0.0/roboapi-rig-v1.0.0.tar.gz
+curl --fail --location --output SHA256SUMS \
+  https://github.com/huashanjian/roboapi-playground/releases/download/roboapi-rig-v1.0.0/SHA256SUMS
+sha256sum --check SHA256SUMS
+tar -xzf roboapi-rig-v1.0.0.tar.gz -C ../rig
+(cd ../rig && sha256sum --check SHA256SUMS)
+cd ../../..
+```
+
+The archive extracts directly into the rig directory expected by `.env.example`.
+Its `bundle_manifest.json` describes the distributed inputs; the builder creates
+a separate `asset_manifest.json` for the assembled Franka robot.
+
+The Panda model remains a separate prerequisite. Obtain a local copy of
+`ISAACLAB_NUCLEUS_DIR/Robots/FrankaEmika/panda_instanceable.usd`, the model used by
+upstream RoboLab, together with its referenced `Materials/` and `Props/` files.
+Set `ROBOAPI_PANDA_USD` in `.env.local` to that copy. Preserve the model's relative
+directory structure and original license terms. The bundle does not supply
+Panda geometry, benchmark scenes or the simulator installation.
+
+### Input contract
+
 The builder consumes a Panda instanceable USD, a calibrated tool assembly USD,
 a camera JSON and an actuator JSON. Asset resolution requires all referenced
 Panda geometry to be available locally. `ROBOAPI_ASSEMBLY_ROOT` identifies the
