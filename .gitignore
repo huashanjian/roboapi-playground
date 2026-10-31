@@ -54,3 +54,6 @@ pyrightconfig.json
 credentials/
 output/
 *.mp4
+
+# Published README recordings.
+!docs/media/roboapi/*-full.mp4

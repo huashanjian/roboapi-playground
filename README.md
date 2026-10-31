@@ -1,145 +1,126 @@
-# RoboLab with RoboAPI
+# RoboAPI × RoboLab
 
 **English** | [简体中文](README.zh-CN.md)
 
 [![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
-[![Rig asset release](https://img.shields.io/github/v/release/huashanjian/roboapi-playground?label=rig%20assets)](https://github.com/huashanjian/roboapi-playground/releases/latest)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-**Run and evaluate RoboAPI robot policies in NVIDIA RoboLab.**
+Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies in
+[NVIDIA RoboLab](https://github.com/NVLabs/RoboLab). This fork adds a RoboAPI
+adapter, a calibrated Franka/Robotiq assembly and a wrist fisheye camera.
 
-Connect [PokeBot RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) to the
-[NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) simulation benchmark with a
-Franka arm, a calibrated Robotiq gripper assembly and a wrist fisheye camera.
+[Demos](#demos) · [Try it out](#try-it-out) · [How it works](#how-it-works) · [Documentation](#documentation)
 
-**[Run your first task →](#quick-start)**
+## Demos
 
-[Integration](#integration) · [Documentation](#documentation) · [FAQ](#faq) · [Tests](#tests)
+### Putting electronic devices away
 
-## Integration
+> Put the electronic devices in the grey bin
 
-- **Evaluate policies from wrist observations.** The model receives the task instruction, one wrist RGB image, measured flange pose and measured gripper opening. Object state and privileged task observations are excluded.
-- **Use a calibrated robot assembly.** The integration combines a Franka arm with a Robotiq linkage, native fisheye optics and a calibrated gripper response model.
-- **Run RoboLab's 120 tasks.** The adapter reuses the official task definitions, episode loop and success predicates. This configuration uses a uniform 120 seconds of simulated time and at most 90 action chunks per episode; see [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
+[![The robot moves the grey bin, picks up the mouse and places it inside.](docs/media/roboapi/electronics-preview.gif)](docs/media/roboapi/electronics-full.mp4)
 
-## Quick start
+The robot moves the bin, then picks up the mouse. This excerpt comes from a
+longer rollout that also handles the remote control and phone.
+[Full recording · MP4 · 79 s](docs/media/roboapi/electronics-full.mp4)
 
-### 1. Prepare the environment and assets
+<table>
+  <tr>
+    <th width="50%">Stacking three cubes</th>
+    <th width="50%">Turning a mug upright</th>
+  </tr>
+  <tr>
+    <td><a href="docs/media/roboapi/cube-stacking-full.mp4"><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="The robot stacks three Rubik's cubes, including its grasp adjustments." width="400" /></a></td>
+    <td><a href="docs/media/roboapi/mug-upright-full.mp4"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="400" /></a></td>
+  </tr>
+  <tr>
+    <td>“Stack the rubiks cubes in a tower”<br />Preview at 3× replay speed.<br /><a href="docs/media/roboapi/cube-stacking-full.mp4">Full recording · MP4 · 59 s</a></td>
+    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”<br /><a href="docs/media/roboapi/mug-upright-full.mp4">Full recording · MP4 · 8 s</a></td>
+  </tr>
+</table>
 
-Clone this repository, then run the commands below from its root directory in Bash:
+Selected simulation rollouts. Recording durations reflect replay time and exclude
+API waiting time. The external camera shown here is for viewing; the policy
+receives the wrist camera image.
 
-```bash
-git clone --branch feat/roboapi-eval https://github.com/huashanjian/roboapi-playground.git
-cd RoboLab
-```
+## Try it out
 
-| Requirement | Setup |
-| --- | --- |
-| Python and simulator | Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1. Follow the [upstream installation guide](https://github.com/NVLabs/RoboLab/tree/b6cfcf6ccd2113c4cd1216d35b33024a7d5691da#installation) for this checkout, using the `isaac51` extra. |
-| Camera support | The simulator must provide the native `OmniLensDistortionFthetaAPI` schema. |
-| Tool assembly and calibration | Install the [v1.0.0 rig asset bundle](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0) using the [asset download instructions](docs/roboapi/setup.md#download-the-rig-assets). |
-| Panda model | Supply a local `panda_instanceable.usd` with its referenced `Materials/` and `Props/` files. Preserve their relative directory structure. |
+Start with **Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1**.
+Follow the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
+to clone this branch, install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
+configure `.env.local` and build the robot.
 
-### 2. Configure and build the robot
-
-Create your local configuration:
-
-```bash
-cp -n .env.example .env.local
-```
-
-Edit `.env.local` to set `ROBOAPI_PANDA_USD` to your Panda model and
-`ROBOAPI_PYTHON` to your simulator environment's Python executable. The build
-command needs USD (`pxr`) and NumPy in that environment. Keep the rig paths
-aligned with the files installed in step 1.
-
-The default model is `poke-aurora-preview` at `https://api.pokebot.com/v1`.
-Set `ROBOAPI_MODEL` and `ROBOAPI_BASE_URL` to change them. Before running a model
-episode, save your API key in the file named by `ROBOAPI_TOKEN_FILE`, with file
-permissions `0600` and parent directory permissions `0700`.
-
-Load the configuration and build the assembled robot:
-
-```bash
-set -a
-source .env.local
-set +a
-"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset
-```
-
-### 3. Check the simulator setup
-
-Check mechanics, control and rendering without an API key or model call:
+From the repository root, first check the robot, gripper and camera without
+calling the model:
 
 ```bash
 policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
   --preflight-only --output-folder-name roboapi_preflight
 ```
 
-The check writes its report to `output/roboapi_preflight/preflight.json` and
-records the wrist camera view in the same directory. Resolve any reported
-failure before running a model episode.
-
-### 4. Run one evaluated episode
-
-With your API key in place, run:
+Then, with your API key configured, run one episode:
 
 ```bash
 policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
   --output-folder-name roboapi_single
 ```
 
-Outputs are saved under `output/roboapi_single/`. Local configuration, installed
-assets, credentials and evaluation outputs are excluded from version control
-and Docker builds.
+The preflight report is at `output/roboapi_preflight/preflight.json`.
+The episode writes to `output/roboapi_single/`. To try the featured task, replace
+`BananaInBowlTask` with `ElectronicsInBinTask`.
+
+## How it works
+
+RoboLab supplies the task definitions, episode loop and success checks. The
+adapter connects that loop to RoboAPI:
+
+1. **Observe:** send the task instruction, one wrist RGB image, measured tool pose
+   and gripper opening. Task object states are not sent to the model.
+2. **Act:** execute the returned pose and gripper action chunks on the simulated
+   Franka/Robotiq robot.
+3. **Observe again:** capture the updated wrist view and robot state for the next
+   request, until the episode ends.
+
+The calibrated assembly connects the camera view, tool coordinates and gripper
+response used by the policy to their simulated counterparts. The
+[control notes](docs/roboapi/control.md) explain the coordinate transforms,
+tool load compensation and gripper dynamics.
+
+The runner supports RoboLab's **120 task definitions**, with a uniform
+120 seconds of simulated time and at most 90 action chunks per episode.
+See [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions)
+for the differences from the upstream robot and time limits.
 
 ## Documentation
 
-| I want to… | Read |
+| To… | Start here |
 | --- | --- |
-| Configure the environment, assets or camera | [Setup and calibration](docs/roboapi/setup.md) |
+| Install the simulator, configure assets and run a first episode | [Setup and calibration](docs/roboapi/setup.md) |
+| Change the model, API endpoint or local paths | [Configuration variables](.env.example) |
 | Understand coordinates, arm control and gripper behavior | [Control model](docs/roboapi/control.md) |
-| Understand observations, actions and evaluation conditions | [Protocol and evaluation](docs/roboapi/evaluation.md) |
-| Evaluate all 120 tasks | [Complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools) |
-| Change the model, endpoint or local paths | [Configuration variables](.env.example) |
+| Inspect observations, action chunks and evaluation conditions | [Protocol and evaluation](docs/roboapi/evaluation.md) |
+| Run all 120 tasks and collect results | [Complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools) |
 
-## FAQ
+Run outputs include model and camera settings, task and seed information,
+returned action chunks and execution logs.
 
-### Do I need a physical robot?
+<details>
+<summary>Common setup questions</summary>
 
-The evaluation runs in Isaac Sim. It uses the local Panda model, calibrated
-tool assembly and RoboLab task assets described in the setup instructions.
+**Do I need a physical robot?** No. These tasks run in Isaac Sim.
 
-### What is included in the rig asset bundle?
-
-The bundle supplies the tool assembly, camera calibration and actuator
+**What comes with the rig bundle?** The tool assembly and camera/actuator
 calibration. Obtain the Panda geometry, benchmark scenes and simulator
 separately; see [required assets](docs/roboapi/setup.md#required-assets).
 
-### What can I check before calling the model?
-
-The [offline tests](#tests) run without Isaac Sim or model calls. The simulator
-preflight above checks the assembled robot and rendered camera with no API key
-or model call. It requires the simulator and installed assets.
-
-### Can I change the model or API endpoint?
-
-Yes. Set `ROBOAPI_MODEL` and `ROBOAPI_BASE_URL` in `.env.local`, then reload the
-configuration before starting a run. The endpoint must implement the
+**Can I change the model?** Set `ROBOAPI_MODEL` and `ROBOAPI_BASE_URL` in
+`.env.local`. The endpoint must implement the
 [RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
 
-### How do I run the full evaluation?
+**The simulator check fails. Where should I start?** Read
+`output/roboapi_preflight/preflight.json`, then check the asset paths and native
+fisheye support against the [setup guide](docs/roboapi/setup.md).
 
-Follow [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
-to prepare the task catalog, start workers and collect results. The default
-protocol runs 120 tasks with seeds 0 through 9, for 1,200 task and seed combinations.
-
-### Which conditions should accompany reported results?
-
-Report the Franka/Robotiq assembly, wrist camera configuration, uniform
-120 second simulated horizon and limit of 90 action chunks. These differ from
-upstream RoboLab's standard Panda gripper, camera and task time limits.
-The repository contains no evaluation scores or comparative results.
+</details>
 
 ## Tests
 
@@ -150,15 +131,16 @@ python -m pip install -r requirements-roboapi-tests.txt
 scripts/test_roboapi.sh
 ```
 
-These checks run without Isaac Sim. With PyTorch installed they also exercise
-the gripper action buffers on CPU. A simulator preflight remains necessary for
-a new installation or calibrated asset.
+These checks run without Isaac Sim or model calls. With PyTorch installed they
+also exercise the gripper action buffers on CPU.
 
-## License
+## Acknowledgements and license
 
-The code is licensed under [Apache 2.0](LICENSE). RoboLab's upstream history and
-NVIDIA copyright notices are retained. Supplied robot, tool and benchmark assets
-retain their respective licenses; see [third party notices](THIRD_PARTY_NOTICES.md).
+Built on [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab), using the
+[RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policy interface.
+The code is licensed under [Apache 2.0](LICENSE). Upstream history and NVIDIA
+copyright notices are retained. Robot, tool and benchmark assets retain their
+respective licenses; see [third party notices](THIRD_PARTY_NOTICES.md).
 
 ## Star History
 

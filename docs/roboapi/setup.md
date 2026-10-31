@@ -1,18 +1,95 @@
 # Configuration and calibrated assembly
 
-Use Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1. Install the repository
-with the `isaac51` extra according to the upstream guide. A separate lightweight
-Python environment can run the offline checks. Do not install a second Isaac
-stack into an existing shared simulator environment.
+## From a fresh clone to your first episode
+
+Run the commands in this guide in Bash, from the repository root unless stated
+otherwise.
+
+### 1. Install the simulator environment
+
+```bash
+git clone --branch feat/roboapi-eval https://github.com/huashanjian/roboapi-playground.git
+cd RoboLab
+```
+
+Use Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1. Follow the
+[upstream installation guide](https://github.com/NVLabs/RoboLab/tree/b6cfcf6ccd2113c4cd1216d35b33024a7d5691da#installation)
+for this checkout, selecting the `isaac51` extra. The simulator must provide the
+native `OmniLensDistortionFthetaAPI` schema. A separate lightweight Python
+environment can run the [offline checks](../../README.md#tests). Do not install
+a second Isaac stack into an existing shared simulator environment.
+
+### 2. Install the assets and configure local paths
+
+```bash
+cp -n .env.example .env.local
+```
+
+Install the rig bundle and Panda model using [Required assets](#required-assets)
+below. Obtain RoboLab's benchmark assets using the upstream installation guide.
+In `.env.local`, set `ROBOAPI_PANDA_USD` to the local Panda model and
+`ROBOAPI_PYTHON` to the simulator environment's Python executable. Building the
+robot requires USD (`pxr`) and NumPy in that environment. Keep the rig paths
+aligned with the installed files.
+
+The default model is `poke-aurora-preview` at `https://api.pokebot.com/v1`.
+Set `ROBOAPI_MODEL` and `ROBOAPI_BASE_URL` in `.env.local` to change them.
 
 `policies/roboapi/config.py` reads the `ROBOAPI_*` environment variables shown in
 `.env.example`. Source the chosen configuration before importing Python modules.
-Relative paths resolve against the working directory. The endpoint and model
-are normal deployment settings; the API key is read only from `ROBOAPI_TOKEN_FILE`.
-Keep that file owner-readable only (mode 0600), under an owner-only directory
-(mode 0700). `.env.local`, `.local`, credentials and evaluation outputs are ignored
-by Git and Docker. HTTP archives contain request bodies and images, never the
+Relative paths resolve against the working directory. The API key is read only
+from `ROBOAPI_TOKEN_FILE`. `.env.local`, `.local`, credentials and evaluation
+outputs are ignored by Git and Docker. HTTP archives contain request bodies and images, never the
 Authorization header; treat output directories as private observations.
+
+### 3. Load the configuration and build the robot
+
+```bash
+set -a
+source .env.local
+set +a
+"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset
+```
+
+This writes the assembled robot to `ROBOAPI_ROBOT_USD` and its
+`asset_manifest.json` to `ROBOAPI_RIG_DIR`. Keep those files together; when
+changing the robot output directory, also place the manifest beside the USD
+with the builder's `--manifest` option.
+
+### 4. Check the simulator without calling the model
+
+```bash
+policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+  --preflight-only --output-folder-name roboapi_preflight
+```
+
+No API key is needed for this check. It checks mechanics, control and rendering,
+and writes `output/roboapi_preflight/preflight.json` with wrist-camera recordings
+in the same directory. Resolve reported failures before running an episode.
+
+### 5. Add your API key and run one episode
+
+Create an owner-only directory for the API key:
+
+```bash
+mkdir -p "$(dirname "$ROBOAPI_TOKEN_FILE")"
+chmod 700 "$(dirname "$ROBOAPI_TOKEN_FILE")"
+```
+
+Save your API key in the file named by `ROBOAPI_TOKEN_FILE`, then make the file
+owner-readable only and run the episode:
+
+```bash
+chmod 600 "$ROBOAPI_TOKEN_FILE"
+policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+  --output-folder-name roboapi_single
+```
+
+Outputs are saved under `output/roboapi_single/`. The launcher uses
+`ROBOAPI_PYTHON`; reload `.env.local` before starting a new process after changing
+its settings. See [Protocol and evaluation](evaluation.md) for the observations,
+actions and evaluation conditions, or [Complete evaluation tools](evaluation.md#complete-evaluation-tools)
+to run all 120 tasks.
 
 ## Required assets
 
