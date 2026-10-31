@@ -86,7 +86,7 @@ The adapter turns RoboLab observations into RoboAPI requests, maps the returned
 actions into simulator coordinates and reports their execution:
 
 ```mermaid
-flowchart LR
+flowchart TD
     sim["RoboLab simulation"]
     api["RoboAPI session"]
     adapter["Adapter + robot controller"]

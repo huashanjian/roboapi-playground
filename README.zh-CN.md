@@ -71,7 +71,7 @@ policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
 适配器将 RoboLab 观测组织为 RoboAPI 请求，把返回的动作转换到仿真坐标系，并反馈执行情况：
 
 ```mermaid
-flowchart LR
+flowchart TD
     sim["RoboLab 仿真"]
     api["RoboAPI 会话"]
     adapter["适配器与机器人控制器"]
