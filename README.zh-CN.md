@@ -5,7 +5,7 @@
 [![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
 [![代码许可证](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-使用提供的 Franka/Robotiq 机器人组件和腕部鱼眼相机标定，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中尝试 [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) 策略。
+使用提供的 Franka/Robotiq 机器人组件和腕部鱼眼相机标定，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中尝试 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 策略。
 
 这个 playground 将 RoboAPI 作为外部策略服务调用。本仓库的代码负责把公开 API 接入 RoboLab、组装仿真机器人并保存运行日志，沿用 RoboLab 的任务定义、回合执行流程和成功判定。
 
@@ -104,7 +104,7 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 | 实测状态 | 工具位置（米）、姿态与夹爪开口比例 |
 | 返回的动作块 | K × 8 个数值，API 传输顺序为 `[x, y, z, qx, qy, qz, qw, gripper]` |
 
-[RoboAPI 模型接口协议](https://developers.pokebot.com/docs/roboapi/latest/model-contract)规定，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开）。K 由服务端决定。本仓库适配器的内部位姿和归档 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
+[RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)规定，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开）。K 由服务端决定。本仓库适配器的内部位姿和归档 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
 
 | 文件 | 对应实现 |
 | --- | --- |
@@ -122,7 +122,7 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 
 ## 🧩 RoboAPI 接入说明
 
-本节说明本仓库怎样使用 RoboAPI 的公开接口，以及怎样将提供的标定参数加载到仿真中。服务端的接口定义见 RoboAPI 的[模型接口文档](https://developers.pokebot.com/docs/roboapi/latest/model-contract)和[机器人配置文档](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters)。
+本节说明本仓库怎样使用 RoboAPI 的公开接口，以及怎样将提供的标定参数加载到仿真中。服务端的接口定义见 RoboAPI 的[模型接口文档](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)和[硬件适配接口文档](https://developers.pokebot.com/zh/docs/roboapi/latest/hardware-adapters)。
 
 ### 将 API 位姿对应到仿真工具
 
@@ -210,7 +210,7 @@ PY
 
 ## 🛠️ 修改与扩展
 
-**更换模型。** 在 `.env.local` 中设置 `ROBOAPI_MODEL`，需要时同时修改 `ROBOAPI_BASE_URL`，然后执行 `set -a; source .env.local; set +a` 重新加载，再启动新进程。服务须实现 [RoboAPI 模型接口协议](https://developers.pokebot.com/docs/roboapi/latest/model-contract)。使用模型别名时，会话在创建时解析并固定实际版本。可对照 `manifest.json` 中请求的 `model` 与 `summary.json` 中的 `resolved_model`。
+**更换模型。** 在 `.env.local` 中设置 `ROBOAPI_MODEL`，需要时同时修改 `ROBOAPI_BASE_URL`，然后执行 `set -a; source .env.local; set +a` 重新加载，再启动新进程。服务须实现 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)。使用模型别名时，会话在创建时解析并固定实际版本。可对照 `manifest.json` 中请求的 `model` 与 `summary.json` 中的 `resolved_model`。
 
 **调整相机或夹爪标定。** 用 `ROBOAPI_CALIBRATION` 和 `ROBOAPI_ACTUATOR` 指向自己的标定文件；更换相机组件时，还要同步设置 `ROBOAPI_ASSEMBLY_USD` 和 `ROBOAPI_CAMERA_PRIM`。重新加载配置后，执行 `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset` 重建机器人，再用新的输出目录运行预检查。查看腕部图像、运行时相机变换和 `gripper_validation`，之后再运行新回合。[资产输入约定](docs/roboapi/setup.md#input-contract) 列出了 JSON 字段和 USD 结构；只改 JSON 路径不会更新已构建的机器人。
 
@@ -258,7 +258,7 @@ scripts/test_roboapi.sh
 
 ## 🙏 致谢与许可证
 
-本项目基于 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)，通过 [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) 接口调用机器人策略。
+本项目基于 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)，通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用机器人策略。
 
 代码采用 [Apache 2.0 许可证](LICENSE)，保留上游历史与 NVIDIA 版权声明。机器人、工具和基准资产各自遵循其原有许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 

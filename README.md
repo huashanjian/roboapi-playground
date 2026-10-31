@@ -150,7 +150,7 @@ API's **XYZW** order.
 These notes explain how this repository uses RoboAPI's public interface and
 loads the supplied calibration into the simulator. For the service's interface
 definitions, see the RoboAPI [model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
-and [embodiment documentation](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters).
+and [hardware adapter documentation](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters).
 
 ### Matching API poses to the simulated tool
 

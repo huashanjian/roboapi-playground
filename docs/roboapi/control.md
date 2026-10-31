@@ -22,7 +22,7 @@ model state. It does not use task objects or a model-generated torque value.
 This is an explicit control extension relative to upstream RoboLab.
 
 Tool payload configuration is distinct from camera/TCP calibration, consistent
-with the [RoboAPI embodiment contract](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters).
+with RoboAPI's [tool load interface](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters#tool-load).
 Deleting this compensation would change joint efforts and tracking behavior.
 
 ## Gripper and physics
