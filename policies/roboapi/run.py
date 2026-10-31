@@ -122,7 +122,7 @@ def main():
             record_viewport=args.video_mode in ('all', 'viewport'))
 
         if not args.output_folder_name:
-            args.output_folder_name = constants.get_timestamp() + '_roboapi_full120'
+            args.output_folder_name = constants.get_timestamp() + '_roboapi'
         output = Path(constants.PACKAGE_DIR) / 'output' / args.output_folder_name
         output.mkdir(parents=True, exist_ok=True)
         manifest = {

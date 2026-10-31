@@ -9,5 +9,4 @@ unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
 export PYTHONPATH="$repo_dir${PYTHONPATH:+:$PYTHONPATH}"
 cd "$repo_dir"
 exec "${ROBOAPI_PYTHON:-$repo_dir/.venv/bin/python}" -m policies.roboapi.run \
-  --headless --device "${ROBOAPI_DEVICE:-cpu}" \
-  --output-folder-name "${ROBOAPI_RUN_NAME:-roboapi_full120_10seeds_120s}" "$@"
+  --headless --device "${ROBOAPI_DEVICE:-cpu}" "$@"

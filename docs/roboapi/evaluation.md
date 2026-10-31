@@ -42,6 +42,10 @@ No evaluation scores or comparative experiment results are bundled.
 
 ## Complete evaluation tools
 
+Run these commands from the repository root. The `tools` directory is not
+part of the installed package, so `python -m tools.roboapi_eval...` only
+resolves from a checkout.
+
 After configuring the rig, collect the preflight and task catalog into a new
 run group. The preparation step verifies these and freezes task assignments,
 source hashes and asset hashes before scheduling any model calls.

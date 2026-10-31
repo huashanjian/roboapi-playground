@@ -63,6 +63,8 @@ isaac51 = [
     "isaacsim[all,extscache]==5.1.0",
 ]
 analysis = ["sbi"]
+# httpx is a core dependency for the RoboAPI transport; it also covers
+# starlette.testclient.TestClient in the dashboard route tests.
 test = ["pytest"]
 all = ["sbi", "pytest"]
 

@@ -52,5 +52,4 @@ pyrightconfig.json
 !.env.example
 .venv-test/
 credentials/
-output/
 *.mp4
