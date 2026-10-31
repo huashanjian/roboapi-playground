@@ -1,5 +1,7 @@
 # RoboLab with RoboAPI
 
+**English** | [简体中文](README.zh-CN.md)
+
 Run vision-based robot policies through [PokeBot RoboAPI](https://developers.pokebot.com/docs/roboapi/latest)
 on the [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) benchmark.
 The integration uses a Franka arm, a calibrated Robotiq linkage and a single wrist
@@ -58,3 +60,13 @@ a new installation or calibrated asset.
 RoboLab's upstream history and NVIDIA copyright notices are retained. See
 [LICENSE](LICENSE) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
 Supplied robot, tool and benchmark assets retain their respective licenses.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=huashanjian%2Froboapi-playground&amp;type=date&amp;legend=top-left">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=huashanjian/roboapi-playground&amp;type=date&amp;theme=dark&amp;legend=top-left" />
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=huashanjian/roboapi-playground&amp;type=date&amp;legend=top-left" />
+    <img alt="GitHub star history for huashanjian/roboapi-playground" src="https://api.star-history.com/chart?repos=huashanjian/roboapi-playground&amp;type=date&amp;legend=top-left" width="800" />
+  </picture>
+</a>
