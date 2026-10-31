@@ -5,13 +5,13 @@
 [![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
 [![代码许可证](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-使用经过标定的 Franka/Robotiq 机器人和腕部鱼眼相机，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中运行 [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) 策略。
+使用提供的 Franka/Robotiq 机器人组件和腕部鱼眼相机标定，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中尝试 [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) 策略。
 
-本分支加入了 RoboAPI 推理适配器、机器人组件构建工具和执行日志，沿用 RoboLab 的任务定义、回合执行流程和成功判定。
+这个 playground 将 RoboAPI 作为外部策略服务调用。本仓库的代码负责把公开 API 接入 RoboLab、组装仿真机器人并保存运行日志，沿用 RoboLab 的任务定义、回合执行流程和成功判定。
 
 [任务演示](#任务演示) · [动手试试](#动手试试) · [运行演示任务](#运行演示任务) · [代码导览](#代码导览)
 
-[设计说明](#设计说明) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [文档导航](#文档导航)
+[接入说明](#接入说明) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [文档导航](#文档导航)
 
 <a id="任务演示"></a>
 
@@ -89,18 +89,11 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 
 ## 🗺️ 代码导览
 
-适配器将 RoboLab 观测组织为 RoboAPI 请求，把返回的动作转换到仿真坐标系，并反馈执行情况：
+本地适配器向 RoboAPI 服务发送 RoboLab 观测，把返回的动作转换到仿真坐标系，并反馈执行情况：
 
-```mermaid
-flowchart TD
-    sim["RoboLab 仿真"]
-    api["RoboAPI 会话"]
-    adapter["适配器与机器人控制器"]
-    sim -->|"任务指令、腕部 RGB、实测状态"| api
-    api -->|"位姿与夹爪动作块"| adapter
-    adapter -->|"仿真步进"| sim
-    adapter -.->|"在下次请求中附上执行回执"| api
-```
+<p align="center">
+  <img src="docs/media/roboapi/integration-flow.zh-CN.svg" alt="本仓库适配器在 RoboLab 仿真环境与外部 RoboAPI 策略服务之间传递观测和动作，并在后续请求中附上执行回执。" width="560" />
+</p>
 
 [`client.py`](policies/roboapi/client.py) 连接以下观测与动作。物体状态和任务特权观测留在仿真端。
 
@@ -111,7 +104,7 @@ flowchart TD
 | 实测状态 | 工具位置（米）、姿态与夹爪开口比例 |
 | 返回的动作块 | K × 8 个数值，API 传输顺序为 `[x, y, z, qx, qy, qz, qw, gripper]` |
 
-每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开）。K 由服务端决定。适配器内部位姿和归档的 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
+[RoboAPI 模型接口协议](https://developers.pokebot.com/docs/roboapi/latest/model-contract)规定，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开）。K 由服务端决定。本仓库适配器的内部位姿和归档 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
 
 | 文件 | 对应实现 |
 | --- | --- |
@@ -125,37 +118,40 @@ flowchart TD
 | [`gripper_response.py`](policies/roboapi/gripper_response.py) | 夹爪延迟、响应限制和测量采样 |
 
 <a id="设计说明"></a>
+<a id="接入说明"></a>
 
-## 🧩 设计说明
+## 🧩 RoboAPI 接入说明
 
-### 策略控制的是机器人上的哪个点？
+本节说明本仓库怎样使用 RoboAPI 的公开接口，以及怎样将提供的标定参数加载到仿真中。服务端的接口定义见 RoboAPI 的[模型接口文档](https://developers.pokebot.com/docs/roboapi/latest/model-contract)和[机器人配置文档](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters)。
 
-控制对象是位于法兰中心的 `tool0`，目标位姿对应这个原点，而非指尖。构建工具将末端工具、夹爪和相机作为整体，安装位置沿 `panda_link7` 的局部 Z 轴偏移 107 mm，安装姿态绕 Z 轴旋转 +90°。测得的 `tool0` 位姿已经包含这个装配变换。
+### 将 API 位姿对应到仿真工具
 
-策略基坐标系与机器人基坐标系的原点重合，坐标轴方向不同。[`tool_to_policy_pose`](policies/roboapi/client.py) 对 4 × 4 位姿变换矩阵作左乘，转换参考坐标系：
+在当前仿真配置中，RoboAPI 返回的目标位姿对应法兰中心的 `tool0`，而非指尖。本地构建工具将提供的末端工具、夹爪和相机整体安装在 `panda_link7` 上：位置沿局部 Z 轴偏移 107 mm，姿态绕 Z 轴旋转 +90°。仿真测得的 `tool0` 位姿已经包含这个装配变换。
+
+API 使用的策略坐标系与这台仿真机器人的基坐标系原点重合，坐标轴方向不同。适配器中的 [`tool_to_policy_pose`](policies/roboapi/client.py) 对 4 × 4 位姿变换矩阵作左乘，完成二者之间的转换：
 
 ```text
 T_policy = Rz(-90°) @ T_robot_tool0
 T_robot_tool0 = Rz(+90°) @ T_policy
 ```
 
-例如，位置 `(0.3, 0.1, 0.4)` 米转换后为 `(0.1, -0.3, 0.4)` 米，姿态也随参考系一起旋转。如果再应用一次装配旋转，就会把已装配的工具多转一次；返回动作只需做上述逆变换。[坐标测试](tests/test_roboapi_client.py) 覆盖双向转换和装配旋转不重复应用的情况。
+例如，位置 `(0.3, 0.1, 0.4)` 米转换后为 `(0.1, -0.3, 0.4)` 米，姿态也随参考系一起旋转。检查返回动作时，按上述逆变换映射回仿真坐标系；额外应用装配旋转会使工具多转一次。[坐标测试](tests/test_roboapi_client.py) 覆盖双向转换和装配旋转不重复应用的情况。
 
-机械臂逆运动学还需要控制点处的雅可比矩阵。PhysX 给出的是刚体质心处的雅可比矩阵，[`arm_action.py`](policies/roboapi/arm_action.py) 将它转换到 `tool0` 原点，并补偿附加工具的重力负载。具体公式和关节设置见[控制说明](docs/roboapi/control.md)。
+仿真端的 [`arm_action.py`](policies/roboapi/arm_action.py) 将 PhysX 给出的刚体质心处雅可比矩阵转换到控制点 `tool0`，并补偿附加工具的重力负载。这些操作属于本地控制器实现，具体公式和关节设置见[控制说明](docs/roboapi/control.md)。
 
-### 策略什么时候接收下一次观测？
+### 执行返回的动作块并上报进度
 
-适配器请求一个动作块，按顺序执行各行，再带着新观测请求下一个动作块。例如，在 **30 Hz** 控制频率下，一个 12 步动作块对应 0.4 秒仿真时间，每个动作推进八个 **240 Hz** 物理步。动作块长度可变，客户端不将它裁成固定长度。等待 API 响应期间，仿真时间暂停，因此回放速度不包含网络等待时间。
+本运行器请求一个动作块，按顺序执行各行，再带着新观测发起下一次请求。例如，在本地 **30 Hz** 控制频率下，一个 12 步响应对应 0.4 秒仿真时间，每个动作推进八个 **240 Hz** 物理步。适配器使用服务端返回的动作块长度。同步等待 API 响应期间，仿真时间暂停，因此回放速度不包含网络等待时间。
 
-[`run.py`](policies/roboapi/run.py) 只在 `env.step` 成功返回后确认一个动作已执行。动作块结束时，`client.py` 记录完成步数，`transport.py` 在下次请求中将执行回执与新观测一起发送。如果回合在动作块中途结束，回执记录已执行的前缀，并将该块标为中断。因此，收到一个动作块并不表示其中的动作全部执行完毕。
+[`run.py`](policies/roboapi/run.py) 只在 `env.step` 成功返回后确认一个动作已执行。动作块结束时，`client.py` 记录完成步数，`transport.py` 按 RoboAPI 的执行回执格式，在下次请求中与新观测一起发送。如果回合在动作块中途结束，回执记录已执行的前缀，并将该块标为中断。查看回合日志时，可以对照返回的动作块与回执，确认实际执行到了哪一步。
 
-### 为什么要保留相机和夹爪的响应特性？
+### 加载相机和夹爪标定
 
-腕部相机随工具运动。安装外参决定相机能看到什么，原生 F-theta 鱼眼模型决定图像怎样投影。渲染器保留组件中的 `OmniLensDistortionFthetaAPI` 光学设置。针对 640 × 360 输入，将标定文件中 `K_1280x720` 的前两行缩放为一半；畸变系数和外参不缩放。图像不再额外裁剪、旋转或去畸变，具体实现见 [`camera.py`](policies/roboapi/camera.py)。
+提供的机器人组件包含腕部相机安装外参和原生 F-theta 鱼眼设置。[`camera.py`](policies/roboapi/camera.py) 使用组件中的 `OmniLensDistortionFthetaAPI` 光学参数，并读取标定文件。针对 640 × 360 输入，将 `K_1280x720` 的前两行缩放为一半，畸变系数和外参保持原值。适配器直接发送渲染图像，不额外裁剪、旋转或去畸变。
 
-夹爪指令给出期望开口，并不使关节瞬间到达该位置。[`gripper_response.py`](policies/roboapi/gripper_response.py) 依次处理命令延迟、目标更新周期、一阶响应，以及张开和闭合各自的速度限制。**v1.0.0 资产包的标定参数**采用 100 ms 命令延迟、50 ms 目标更新周期和 150 ms 编码器采样周期，量化步长为一个原始编码器计数。
+夹爪部分由 [`gripper_response.py`](policies/roboapi/gripper_response.py) 从执行器标定中读取命令延迟、目标更新周期、一阶响应参数，以及张开和闭合的速度限制。**v1.0.0 资产包**提供的参数为 100 ms 命令延迟、50 ms 目标更新周期和 150 ms 编码器采样周期，量化步长为一个原始编码器计数。
 
-反馈从仿真主关节的实测位置出发，再经过上述编码器模型。由于响应滞后、接触或采样间隔，闭合指令与下一次上报的开口可能不同。如果直接把上一条指令作为观测发回，策略就无法看到这种差异。
+适配器上报的是仿真主关节位置经过编码器采样与量化后的测量值。检查抓取过程时，可将这个测量值与期望开口对照：响应滞后、接触和采样都可能使两者不同。发送给 RoboAPI 的观测保留测得的开口比例。
 
 <a id="运行记录与评测"></a>
 

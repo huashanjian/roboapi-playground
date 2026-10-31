@@ -5,16 +5,17 @@
 [![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on
+Try [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on
 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks with a
-calibrated Franka/Robotiq robot and a wrist fisheye camera.
+Franka/Robotiq robot and a wrist fisheye camera, using the supplied rig calibration.
 
-This fork adds the RoboAPI inference adapter, robot assembly builder and execution
-logging. RoboLab's task definitions, episode loop and success checks are retained.
+This playground calls RoboAPI as an external policy service. The code here
+connects its public API to RoboLab, assembles the simulation rig and saves
+rollout logs. RoboLab's task definitions, episode loop and success checks are retained.
 
 [Demos](#demos) · [Try it out](#try-it-out) · [Run the demo tasks](#run-the-demo-tasks) · [Codebase tour](#codebase-tour)
 
-[Design notes](#design-notes) · [Inspect a rollout](#inspecting-a-rollout) · [Extend the integration](#extending-the-integration) · [Documentation](#documentation)
+[Integration notes](#integration-notes) · [Inspect a rollout](#inspecting-a-rollout) · [Extend the integration](#extending-the-integration) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -107,19 +108,12 @@ they do not specify the original recordings' conditions.
 
 ## 🗺️ Codebase tour
 
-The adapter turns RoboLab observations into RoboAPI requests, maps the returned
-actions into simulator coordinates and reports their execution:
+The local adapter sends RoboLab observations to the RoboAPI service, maps the
+returned actions into simulator coordinates and reports their execution:
 
-```mermaid
-flowchart TD
-    sim["RoboLab simulation"]
-    api["RoboAPI session"]
-    adapter["Adapter + robot controller"]
-    sim -->|"Instruction + wrist RGB + measured state"| api
-    api -->|"Pose and gripper action chunks"| adapter
-    adapter -->|"Simulation steps"| sim
-    adapter -.->|"Execution receipt in the next request"| api
-```
+<p align="center">
+  <img src="docs/media/roboapi/integration-flow.svg" alt="This repository's adapter exchanges observations and actions between the RoboLab simulator and the external RoboAPI policy service, and sends execution receipts with subsequent requests." width="560" />
+</p>
 
 [`client.py`](policies/roboapi/client.py) connects the following observations and
 actions. Object states and privileged task observations stay in the simulator.
@@ -131,8 +125,9 @@ actions. Object states and privileged task observations stay in the simulator.
 | Measured state | Tool position in metres, orientation and gripper opening ratio |
 | Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` on the API wire |
 
-Each action specifies an **absolute** tool pose and an opening ratio (`0` closed,
-`1` open). K is chosen by the server. Inside the adapter, poses and archived
+The [RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
+specifies **absolute** tool poses and an opening ratio (`0` closed, `1` open).
+K is chosen by the server. Inside this repository's adapter, poses and archived
 `sim_actions` use quaternion order **WXYZ**; `transport.py` converts to/from the
 API's **XYZW** order.
 
@@ -148,19 +143,26 @@ API's **XYZW** order.
 | [`gripper_response.py`](policies/roboapi/gripper_response.py) | Gripper delay, response limits and measurement sampling |
 
 <a id="design-notes"></a>
+<a id="integration-notes"></a>
 
-## 🧩 Design notes
+## 🧩 Using RoboAPI in RoboLab
 
-### Which point does the policy control?
+These notes explain how this repository uses RoboAPI's public interface and
+loads the supplied calibration into the simulator. For the service's interface
+definitions, see the RoboAPI [model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
+and [embodiment documentation](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters).
 
-The controlled body is `tool0` at the flange centre. A pose target refers to this
-origin, not the fingertips. The assembly builder mounts the tool, gripper and
-camera together, 107 mm along `panda_link7`'s local Z axis with a +90° Z rotation.
-That mounting transform is already present in the measured `tool0` pose.
+### Matching API poses to the simulated tool
 
-The policy base and robot base share an origin but use different axes.
-[`tool_to_policy_pose`](policies/roboapi/client.py) changes the reference frame
-by left-multiplying the 4 × 4 pose transform:
+In this simulation setup, RoboAPI pose targets are mapped to `tool0` at the
+flange centre, rather than the fingertips. The local assembly builder places the
+supplied tool, gripper and camera 107 mm along `panda_link7`'s local Z axis,
+with a +90° Z rotation. The simulator's measured `tool0` pose already includes
+that mounting transform.
+
+The API policy frame and this robot's base frame share an origin but use
+different axes. The adapter's [`tool_to_policy_pose`](policies/roboapi/client.py)
+converts between them by left-multiplying the 4 × 4 pose transform:
 
 ```text
 T_policy = Rz(-90°) @ T_robot_tool0
@@ -168,49 +170,52 @@ T_robot_tool0 = Rz(+90°) @ T_policy
 ```
 
 For example, position `(0.3, 0.1, 0.4)` m becomes `(0.1, -0.3, 0.4)` m.
-Orientation rotates with it. Applying the mounting rotation again would rotate
-an already mounted tool twice; the inverse frame mapping is all the returned
-action needs. The [frame tests](tests/test_roboapi_client.py) exercise both
-directions and this mounting case.
+Orientation rotates with it. When checking a returned action, apply the inverse
+frame mapping; an additional mounting rotation would rotate the tool twice.
+The [frame tests](tests/test_roboapi_client.py) exercise both directions and
+this mounting case.
 
-Arm IK also needs its Jacobian at the controlled point. PhysX supplies it at the
-body's centre of mass, so [`arm_action.py`](policies/roboapi/arm_action.py) shifts
-it to the `tool0` origin and compensates for the attached tool's gravitational
-load. The [control notes](docs/roboapi/control.md) give the equations and joint settings.
+On the simulation side, [`arm_action.py`](policies/roboapi/arm_action.py) shifts
+the PhysX Jacobian from the body's centre of mass to the controlled `tool0`
+origin and compensates for the attached tool's gravitational load. These are
+local controller operations; their equations and joint settings are in the
+[control notes](docs/roboapi/control.md).
 
-### When does the policy see the next observation?
+### Executing returned chunks and reporting progress
 
-The adapter requests a chunk, executes its rows in order, then requests another
-chunk with a fresh observation. A 12-row chunk, for example, spans 0.4 seconds
-of simulated time at **30 Hz** control. Each row advances eight **240 Hz** physics
-steps. Chunk length is variable; the client does not crop it to a fixed horizon.
-API waiting pauses simulated time, so replay speed does not include network latency.
+This runner requests a chunk, executes its rows in order, then makes another
+request with a fresh observation. At its **30 Hz** control rate, a 12-row
+response, for example, spans 0.4 seconds of simulated time. Each row advances
+eight **240 Hz** physics steps. The adapter uses the length returned by the
+service. Its synchronous API call pauses simulated time, so replay speed
+does not include network latency.
 
 [`run.py`](policies/roboapi/run.py) acknowledges an action only after `env.step`
 returns successfully. At the chunk boundary, `client.py` records the executed
-count; `transport.py` sends that receipt with the next observation. If the episode
-ends partway through a chunk, its receipt records the executed prefix as interrupted.
-Receiving a chunk therefore does not imply that all of its actions ran.
+count; `transport.py` sends it with the next observation using RoboAPI's execution
+receipt format. If the episode ends partway through a chunk, the receipt records
+the executed prefix as interrupted. When reading a rollout, compare the returned
+chunk with this receipt to see how much actually ran.
 
-### Why model the camera and gripper response?
+### Loading the camera and gripper calibration
 
-The wrist camera moves with the tool. Its mounting transform determines what
-the policy can see, while its native F-theta lens determines how that view is
-projected. The renderer retains the assembly's `OmniLensDistortionFthetaAPI`
-optics. The first two rows of `K_1280x720` are scaled by 0.5 for the 640 × 360 image;
-distortion coefficients and extrinsics are not scaled. Images are sent without
-cropping, rotation or a separate undistortion pass. See [`camera.py`](policies/roboapi/camera.py).
+The supplied rig includes the wrist-camera mounting transform and native
+F-theta lens settings. [`camera.py`](policies/roboapi/camera.py) uses the
+assembly's `OmniLensDistortionFthetaAPI` optics and reads the calibration file.
+For the 640 × 360 input, it scales the first two rows of `K_1280x720` by 0.5;
+distortion coefficients and extrinsics are unchanged. The adapter sends the
+rendered image without cropping, rotation or a separate undistortion pass.
 
-The gripper command is a requested opening, not an instantaneous joint position.
-[`gripper_response.py`](policies/roboapi/gripper_response.py) applies command
-delay, target update cadence, first-order response and separate opening/closing
-speed limits. The **v1.0.0 rig calibration** uses a 100 ms command delay, 50 ms
-target updates and 150 ms encoder sampling, with one raw encoder count of quantization.
+For the gripper, [`gripper_response.py`](policies/roboapi/gripper_response.py)
+loads command delay, target update cadence, first-order response and directional
+speed limits from the actuator calibration. The **v1.0.0 rig bundle** supplies
+a 100 ms command delay, 50 ms target updates and 150 ms encoder sampling,
+with one raw encoder count of quantization.
 
-Feedback starts from the simulated master joint's measured position and passes
-through that encoder model. A closing command can therefore differ from the
-next reported opening because of response lag, contact or sampling. Sending the
-last command as the observation would hide that difference from the policy.
+The adapter reports the simulated master joint's measured position after encoder
+sampling and quantization. When inspecting a grasp, compare that measurement
+with the requested opening: response lag, contact and sampling can make them
+differ. The observation sent to RoboAPI contains the measured opening ratio.
 
 <a id="runs-and-evaluation"></a>
 
