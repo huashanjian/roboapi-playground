@@ -8,7 +8,7 @@ otherwise.
 ### 1. Install the simulator environment
 
 ```bash
-git clone --branch feat/roboapi-eval https://github.com/huashanjian/roboapi-playground.git
+git clone https://github.com/huashanjian/roboapi-playground.git
 cd roboapi-playground
 ```
 

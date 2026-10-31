@@ -2,7 +2,7 @@
 
 [English](README.md) | **简体中文**
 
-[![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
+[![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![代码许可证](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
 使用提供的 Franka/Robotiq 机器人组件和腕部鱼眼相机标定，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中尝试 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 策略。
@@ -46,7 +46,7 @@
 
 ## 🛝 动手试试
 
-需要 **Python 3.11、Isaac Sim 5.1 和 Isaac Lab 2.3.2.post1**。先按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)克隆当前分支，安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。
+需要 **Python 3.11、Isaac Sim 5.1 和 Isaac Lab 2.3.2.post1**。先按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)克隆仓库，安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。
 
 在仓库根目录执行预检查，确认机器人、夹爪与相机可以正常运行；这一步不调用模型：
 
@@ -261,6 +261,8 @@ scripts/test_roboapi.sh
 本项目基于 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)，通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用机器人策略。
 
 代码采用 [Apache 2.0 许可证](LICENSE)，保留上游历史与 NVIDIA 版权声明。机器人、工具和基准资产各自遵循其原有许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
+
+`upstream-main` 分支是上次同步时 NVIDIA RoboLab `main` 分支的副本。
 
 ## Star History
 

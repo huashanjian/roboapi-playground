@@ -2,7 +2,7 @@
 
 **English** | [简体中文](README.zh-CN.md)
 
-[![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=feat%2Froboapi-eval)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Afeat%2Froboapi-eval)
+[![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
 Try [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on
@@ -54,7 +54,7 @@ receives the wrist camera image.
 
 Start with **Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1**.
 Follow the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
-to clone this branch, install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
+to clone the repository, install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
 configure `.env.local` and build the robot.
 
 From the repository root, first check the robot, gripper and camera without
@@ -367,6 +367,7 @@ Built on [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab), using the
 The code is licensed under [Apache 2.0](LICENSE). Upstream history and NVIDIA
 copyright notices are retained. Robot, tool and benchmark assets retain their
 respective licenses; see [third party notices](THIRD_PARTY_NOTICES.md).
+The `upstream-main` branch mirrors NVIDIA RoboLab's `main` as of the last sync.
 
 ## Star History
 
