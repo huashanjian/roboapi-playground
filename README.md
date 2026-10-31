@@ -12,7 +12,9 @@ calibrated Franka/Robotiq robot and a wrist fisheye camera.
 This fork adds the RoboAPI inference adapter, robot assembly builder and execution
 logging. RoboLab's task definitions, episode loop and success checks are retained.
 
-[Demos](#demos) · [Try it out](#try-it-out) · [Codebase tour](#codebase-tour) · [Runs and evaluation](#runs-and-evaluation) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Run the demo tasks](#run-the-demo-tasks) · [Codebase tour](#codebase-tour)
+
+[Design notes](#design-notes) · [Inspect a rollout](#inspecting-a-rollout) · [Extend the integration](#extending-the-integration) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -70,13 +72,36 @@ policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
 ```
 
 The preflight report is at `output/roboapi_preflight/preflight.json`.
-The episode writes to `output/roboapi_single/`. To try the featured task, replace
-`BananaInBowlTask` with `ElectronicsInBinTask`. More tasks are listed in the
+The episode writes to `output/roboapi_single/`. More tasks are listed in the
 [RoboLab task catalog](robolab/tasks/README.md).
 
 Keep `--task` and `--num-runs` explicit for a short trial. If both are omitted,
 a normal evaluation targets all 120 tasks with 10 episodes per task; completed
 episodes in the same output directory are skipped.
+
+<a id="run-the-demo-tasks"></a>
+
+## 🧾 Run the demo tasks
+
+With the setup complete and `.env.local` loaded, these commands run one new
+episode of each featured task, using seed 0 and your configured model:
+
+```bash
+policies/roboapi/run.sh --task ElectronicsInBinTask --num-runs 1 --seed 0 \
+  --model "$ROBOAPI_MODEL" --output-folder-name electronics_example
+policies/roboapi/run.sh --task Stack3RubiksCubeTask --num-runs 1 --seed 0 \
+  --model "$ROBOAPI_MODEL" --output-folder-name stacking_example
+policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
+  --model "$ROBOAPI_MODEL" --output-folder-name mug_example
+```
+
+The outputs go to the three named directories under `output/`. Seeds control
+the episode RNG; these tasks retain their fixed RoboLab object layouts.
+Use a new output name when changing the model or calibration.
+
+The GIFs' original seed, resolved model version and episode traces have not been
+published. These commands run the same tasks with your current configuration;
+they do not specify the original recordings' conditions.
 
 <a id="codebase-tour"></a>
 
@@ -96,15 +121,20 @@ flowchart TD
     adapter -.->|"Execution receipt in the next request"| api
 ```
 
-- **Observations:** one wrist RGB image, the task instruction, measured tool pose
-  and measured gripper opening. Object states and privileged task observations
-  are not sent to the model.
-- **Camera and coordinates:** native `OmniLensDistortionFthetaAPI` fisheye optics
-  and a calibrated tool-to-camera transform. The intrinsic matrix calibrated at 1280 × 720 is scaled
-  for the 640 × 360 policy image.
-- **Control:** returned action chunks drive arm IK and the calibrated Robotiq
-  response model. Feedback uses the measured gripper opening, rather than
-  echoing the requested command.
+[`client.py`](policies/roboapi/client.py) connects the following observations and
+actions. Object states and privileged task observations stay in the simulator.
+
+| Value | Representation |
+| --- | --- |
+| Wrist image | One 360 × 640 × 3 `uint8` RGB image, encoded as a PNG data URL |
+| Instruction | The task's text instruction |
+| Measured state | Tool position in metres, orientation and gripper opening ratio |
+| Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` on the API wire |
+
+Each action specifies an **absolute** tool pose and an opening ratio (`0` closed,
+`1` open). K is chosen by the server. Inside the adapter, poses and archived
+`sim_actions` use quaternion order **WXYZ**; `transport.py` converts to/from the
+API's **XYZW** order.
 
 | File | What to look for |
 | --- | --- |
@@ -117,8 +147,70 @@ flowchart TD
 | [`arm_action.py`](policies/roboapi/arm_action.py) | Arm IK, tool0 Jacobian correction and tool load compensation |
 | [`gripper_response.py`](policies/roboapi/gripper_response.py) | Gripper delay, response limits and measurement sampling |
 
-The [control notes](docs/roboapi/control.md) explain the coordinate conventions,
-tool load compensation and gripper dynamics.
+<a id="design-notes"></a>
+
+## 🧩 Design notes
+
+### Which point does the policy control?
+
+The controlled body is `tool0` at the flange centre. A pose target refers to this
+origin, not the fingertips. The assembly builder mounts the tool, gripper and
+camera together, 107 mm along `panda_link7`'s local Z axis with a +90° Z rotation.
+That mounting transform is already present in the measured `tool0` pose.
+
+The policy base and robot base share an origin but use different axes.
+[`tool_to_policy_pose`](policies/roboapi/client.py) changes the reference frame
+by left-multiplying the 4 × 4 pose transform:
+
+```text
+T_policy = Rz(-90°) @ T_robot_tool0
+T_robot_tool0 = Rz(+90°) @ T_policy
+```
+
+For example, position `(0.3, 0.1, 0.4)` m becomes `(0.1, -0.3, 0.4)` m.
+Orientation rotates with it. Applying the mounting rotation again would rotate
+an already mounted tool twice; the inverse frame mapping is all the returned
+action needs. The [frame tests](tests/test_roboapi_client.py) exercise both
+directions and this mounting case.
+
+Arm IK also needs its Jacobian at the controlled point. PhysX supplies it at the
+body's centre of mass, so [`arm_action.py`](policies/roboapi/arm_action.py) shifts
+it to the `tool0` origin and compensates for the attached tool's gravitational
+load. The [control notes](docs/roboapi/control.md) give the equations and joint settings.
+
+### When does the policy see the next observation?
+
+The adapter requests a chunk, executes its rows in order, then requests another
+chunk with a fresh observation. A 12-row chunk, for example, spans 0.4 seconds
+of simulated time at **30 Hz** control. Each row advances eight **240 Hz** physics
+steps. Chunk length is variable; the client does not crop it to a fixed horizon.
+API waiting pauses simulated time, so replay speed does not include network latency.
+
+[`run.py`](policies/roboapi/run.py) acknowledges an action only after `env.step`
+returns successfully. At the chunk boundary, `client.py` records the executed
+count; `transport.py` sends that receipt with the next observation. If the episode
+ends partway through a chunk, its receipt records the executed prefix as interrupted.
+Receiving a chunk therefore does not imply that all of its actions ran.
+
+### Why model the camera and gripper response?
+
+The wrist camera moves with the tool. Its mounting transform determines what
+the policy can see, while its native F-theta lens determines how that view is
+projected. The renderer retains the assembly's `OmniLensDistortionFthetaAPI`
+optics. The first two rows of `K_1280x720` are scaled by 0.5 for the 640 × 360 image;
+distortion coefficients and extrinsics are not scaled. Images are sent without
+cropping, rotation or a separate undistortion pass. See [`camera.py`](policies/roboapi/camera.py).
+
+The gripper command is a requested opening, not an instantaneous joint position.
+[`gripper_response.py`](policies/roboapi/gripper_response.py) applies command
+delay, target update cadence, first-order response and separate opening/closing
+speed limits. The **v1.0.0 rig calibration** uses a 100 ms command delay, 50 ms
+target updates and 150 ms encoder sampling, with one raw encoder count of quantization.
+
+Feedback starts from the simulated master joint's measured position and passes
+through that encoder model. A closing command can therefore differ from the
+next reported opening because of response lag, contact or sampling. Sending the
+last command as the observation would hide that difference from the policy.
 
 <a id="runs-and-evaluation"></a>
 
@@ -147,6 +239,79 @@ time limits are described in [evaluation conditions](docs/roboapi/evaluation.md#
 Use the [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
 to schedule all tasks and collect results.
 
+<a id="inspecting-a-rollout"></a>
+
+## 🔬 Inspecting a rollout
+
+After running the electronics example, open
+`output/electronics_example/ElectronicsInBinTask/run_0_api/observation_0000.png`.
+This is the wrist image sent on the first query. The matching JSON contains
+`pose_wxyz`, `native_tool_pose_wxyz`, `gripper_open` and the instruction.
+`chunk_0000.json` holds the response to that observation, if the query succeeded.
+
+From the repository root, inspect that episode with Python's standard library:
+
+```bash
+python - output/electronics_example/ElectronicsInBinTask/run_0_api <<'PY'
+import json
+import sys
+from pathlib import Path
+
+episode = Path(sys.argv[1])
+summary = json.loads((episode / "summary.json").read_text())
+for key in ("model", "resolved_model", "status", "executed_steps", "errors"):
+    print(f"{key}: {summary.get(key)}")
+chunks = sorted(episode.glob("chunk_*.json"))
+if chunks:
+    path = chunks[0]
+    chunk = json.loads(path.read_text())
+    obs = json.loads((episode / path.name.replace("chunk_", "observation_")).read_text())
+    print("Measured opening before chunk:", obs["gripper_open"])
+    print("First requested opening:", chunk["gripper_open"][0])
+    print("Returned actions:", len(chunk["sim_actions"]))
+    print("Simulated seconds per action:", chunk["action_dt_s"])
+    print("Request ID:", chunk["request_id"])
+else:
+    print("No action chunk was saved; check status and errors above.")
+PY
+```
+
+Find the same `request_id` in `events.jsonl`: its `execution_feedback` entry
+reports how many actions ran and whether the chunk completed. The next numbered
+observation shows the measured state after that chunk, when another query occurs.
+`summary.json`'s `status` describes the API client lifecycle; task success is
+recorded separately in the run's `episode_results.jsonl`.
+
+<a id="extending-the-integration"></a>
+
+## 🛠️ Extending the integration
+
+**Try another model.** Set `ROBOAPI_MODEL` and, if needed, `ROBOAPI_BASE_URL` in
+`.env.local`, then reload it with `set -a; source .env.local; set +a` before
+launching a new process. The endpoint must implement the
+[RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
+An alias is resolved when the session starts; the session pins that version.
+Compare `manifest.json`'s requested `model` with `summary.json`'s `resolved_model`.
+
+**Change the camera or gripper calibration.** Point `ROBOAPI_CALIBRATION` and
+`ROBOAPI_ACTUATOR` at your calibration files. A different camera assembly also
+needs `ROBOAPI_ASSEMBLY_USD` and `ROBOAPI_CAMERA_PRIM` to match. After reloading
+the configuration, rebuild with `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset`
+and repeat the preflight command with a fresh output name. Check the wrist image,
+runtime camera transform and `gripper_validation` before starting a new episode.
+The [asset input contract](docs/roboapi/setup.md#input-contract) lists the JSON
+fields and USD structure; editing a JSON path alone does not update an already built robot.
+
+**Change the adapter.** Start at `client.py`'s `_extract_observation` and
+`_unpack_response` for data mapping, `transport.py` for the session protocol, and
+`registration.py` for simulator observations and control. Keep quaternion order,
+coordinate frames and the post-step acknowledgement consistent across those
+interfaces. Run the [offline checks](#tests): `test_roboapi_client.py` covers
+frame conversion and chunk execution, `test_roboapi_transport.py` covers sessions
+and receipts, and `test_roboapi_response.py` / `test_roboapi_gripper.py` cover
+gripper response and measured feedback. Changes to rendered views or physical
+tracking also need a simulator preflight and a new task run.
+
 <a id="troubleshooting"></a>
 
 ## 🩹 Troubleshooting
@@ -166,10 +331,6 @@ to schedule all tasks and collect results.
 **What comes with the rig bundle?** The tool assembly and camera/actuator
 calibration. Obtain the Panda geometry, benchmark scenes and simulator
 separately; see [required assets](docs/roboapi/setup.md#required-assets).
-
-**Can I change the model?** Set `ROBOAPI_MODEL` and `ROBOAPI_BASE_URL` in
-`.env.local`. The endpoint must implement the
-[RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
 
 </details>
 
