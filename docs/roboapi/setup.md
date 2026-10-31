@@ -9,7 +9,7 @@ otherwise.
 
 ```bash
 git clone --branch feat/roboapi-eval https://github.com/huashanjian/roboapi-playground.git
-cd RoboLab
+cd roboapi-playground
 ```
 
 Use Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1. Follow the

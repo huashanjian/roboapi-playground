@@ -1,4 +1,4 @@
-# RoboAPI × RoboLab
+# roboapi-playground
 
 [English](README.md) | **简体中文**
 
