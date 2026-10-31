@@ -25,14 +25,6 @@
 
 机器人先挪动收纳箱，再抓起鼠标并放入箱中。
 
-### 策略看到的画面
-
-> 把白杯叠放在一起。
-
-![左为腕部鱼眼画面，右为同一回合的外部视角，机器人把一只白杯叠到另一只上。](docs/media/roboapi/mug-stacking-wrist-preview.gif)
-
-左：策略收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。
-
 <table width="100%">
   <tr>
     <th width="50%">三层魔方堆塔</th>
@@ -76,9 +68,9 @@ policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
 
 <a id="运行演示任务"></a>
 
-### 运行叠杯演示
+### 运行叠杯任务
 
-以下命令用[策略看到的画面](#策略看到的画面)中的任务和随机种子，以当前配置的模型运行一个回合：
+以下命令以当前配置的模型运行一个叠杯回合：
 
 ```bash
 policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
@@ -159,7 +151,7 @@ T_robot_tool0 = Rz(+90°) @ T_policy
 
 ## 🔬 查看一个回合
 
-运行叠杯演示后，打开 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同名 JSON 保存 `pose_wxyz`、`native_tool_pose_wxyz`、`gripper_open` 和任务指令。`chunk_0000.json` 保存针对这次观测返回的动作块。
+运行叠杯任务后，打开 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同名 JSON 保存 `pose_wxyz`、`native_tool_pose_wxyz`、`gripper_open` 和任务指令。`chunk_0000.json` 保存针对这次观测返回的动作块。
 
 在仓库根目录执行以下命令，用 Python 标准库查看这个回合：
 

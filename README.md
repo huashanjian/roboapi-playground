@@ -29,15 +29,6 @@ This repository started as a fork of NVIDIA RoboLab and is now maintained indepe
 
 The robot moves the bin, then picks up the mouse and places it inside.
 
-### What the policy sees
-
-> Stack the white mugs on top of each other.
-
-![Left, the wrist fisheye view; right, an external view of the same episode, as the robot stacks one white mug on another.](docs/media/roboapi/mug-stacking-wrist-preview.gif)
-
-Left: the wrist camera image the policy receives. Right: the same episode from
-an external viewport. Preview at 4× replay speed.
-
 <table width="100%">
   <tr>
     <th width="50%">Stacking three cubes</th>
@@ -92,10 +83,9 @@ the runner starts a full evaluation: all 120 tasks, 10 episodes each.
 
 <a id="run-the-demo-tasks"></a>
 
-### Run the mug-stacking demo
+### Run the mug-stacking task
 
-This command runs the task and seed shown in [What the policy sees](#what-the-policy-sees)
-with your configured model:
+This command runs one mug-stacking episode with your configured model:
 
 ```bash
 policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
@@ -202,7 +192,7 @@ results, report the [evaluation conditions](docs/roboapi/evaluation.md#evaluatio
 
 ## 🔬 Inspecting a rollout
 
-After running the mug-stacking demo, open
+After running the mug-stacking task, open
 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`.
 This is the wrist image sent on the first query. The matching JSON contains
 `pose_wxyz`, `native_tool_pose_wxyz`, `gripper_open` and the instruction.
