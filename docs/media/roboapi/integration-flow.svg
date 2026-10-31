@@ -1,6 +1,43 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="560" height="820" viewBox="0 0 560 820" role="img" aria-labelledby="integration-flow-title integration-flow-desc" lang="en">
-<title id="integration-flow-title">RoboAPI integration flow</title><desc id="integration-flow-desc">The local repository adapter sends observations and execution receipts to the external RoboAPI policy service, receives action chunks, and controls the RoboLab simulation.</desc>
-<defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M1 1 L9 5 L1 9" fill="none" stroke="#617083" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
-<rect width="560" height="820" fill="#fff"/>
-<g font-family="Arial, Microsoft YaHei, sans-serif">
-<rect x="24" y="24" width="512" height="112" rx="12" fill="#ffffff" stroke="#c8d0d9" stroke-width="1.5"/><text x="280" y="69" text-anchor="middle" font-size="28" font-weight="600" fill="#252d38">RoboAPI</text><text x="280" y="106" text-anchor="middle" font-size="23" font-weight="400" fill="#596574">External policy service</text><rect x="24" y="344" width="512" height="112" rx="12" fill="#eef5ff" stroke="#3975bc" stroke-width="1.5"/><text x="280" y="389" text-anchor="middle" font-size="28" font-weight="600" fill="#235b9b">Adapter + robot control</text><text x="280" y="426" text-anchor="middle" font-size="23" font-weight="400" fill="#235b9b">This repository</text><rect x="24" y="684" width="512" height="112" rx="12" fill="#ffffff" stroke="#c8d0d9" stroke-width="1.5"/><text x="280" y="729" text-anchor="middle" font-size="28" font-weight="600" fill="#252d38">RoboLab</text><text x="280" y="766" text-anchor="middle" font-size="23" font-weight="400" fill="#596574">Simulation environment</text><g stroke="#617083" stroke-width="1.8" fill="none" marker-end="url(#arrow)"><path d="M64 326 V154"/><path d="M496 154 V326"/><path d="M64 666 V474"/><path d="M496 474 V666"/></g><text x="88" y="211" text-anchor="start" font-size="22" font-weight="400" fill="#333d49">Inference request</text><text x="88" y="243" text-anchor="start" font-size="22" font-weight="400" fill="#333d49">Next-request receipt</text><text x="472" y="233" text-anchor="end" font-size="23" font-weight="400" fill="#333d49">Action</text><text x="472" y="265" text-anchor="end" font-size="23" font-weight="400" fill="#333d49">chunk</text><text x="88" y="541" text-anchor="start" font-size="22" font-weight="400" fill="#333d49">Observations</text><text x="88" y="573" text-anchor="start" font-size="22" font-weight="400" fill="#333d49">Instruction · wrist RGB</text><text x="88" y="605" text-anchor="start" font-size="22" font-weight="400" fill="#333d49">Measured state</text><text x="472" y="556" text-anchor="end" font-size="23" font-weight="400" fill="#333d49">Mapped</text><text x="472" y="588" text-anchor="end" font-size="23" font-weight="400" fill="#333d49">actions</text></g></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="620" viewBox="0 0 560 620" role="img" aria-labelledby="integration-flow-title integration-flow-desc" lang="en">
+  <title id="integration-flow-title">RoboAPI integration flow</title>
+  <desc id="integration-flow-desc">This repository&#x27;s adapter gets observations from RoboLab and calls the external RoboAPI policy service, attaching execution receipts to subsequent requests. Returned action chunks are mapped to simulator coordinates and executed locally.</desc>
+  <defs>
+    <marker id="observation-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1 L8 5 L2 9" fill="none" stroke="#327158" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+    <marker id="action-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M2 1 L8 5 L2 9" fill="none" stroke="#aa532d" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" />
+    </marker>
+  </defs>
+  <rect width="560" height="620" fill="#faf9f5" />
+  <g font-family="-apple-system, BlinkMacSystemFont, &apos;Segoe UI&apos;, &apos;Noto Sans CJK SC&apos;, &apos;Microsoft YaHei&apos;, sans-serif">
+  <text x="40" y="66" font-size="34" font-weight="650" fill="#243b32" text-anchor="start">RoboAPI</text>
+  <text x="40" y="103" font-size="23" font-weight="400" fill="#59685f" text-anchor="start">External policy service</text>
+  <path d="M40 126 H520" stroke="#c7d1c8" stroke-width="1.2" />
+  <g transform="translate(466 52)" fill="none" stroke="#59685f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 0 L0 12 L12 24 M32 0 L44 12 L32 24 M26 -3 L18 27" />
+  </g>
+  <path d="M48 264 V138" fill="none" stroke="#327158" stroke-width="2.2" stroke-linecap="round" marker-end="url(#observation-arrow)" />
+  <path d="M512 138 V264" fill="none" stroke="#aa532d" stroke-width="2.2" stroke-linecap="round" marker-end="url(#action-arrow)" />
+  <path d="M48 506 V372" fill="none" stroke="#327158" stroke-width="2.2" stroke-linecap="round" marker-end="url(#observation-arrow)" />
+  <path d="M512 372 V506" fill="none" stroke="#aa532d" stroke-width="2.2" stroke-linecap="round" marker-end="url(#action-arrow)" />
+  <text x="72" y="183" font-size="24" font-weight="600" fill="#2b644d" text-anchor="start">Inference request</text>
+  <text x="72" y="215" font-size="22" font-weight="400" fill="#2b644d" text-anchor="start">Receipt on next request</text>
+  <text x="72" y="412" font-size="24" font-weight="600" fill="#2b644d" text-anchor="start">Observations</text>
+  <text x="72" y="444" font-size="22" font-weight="400" fill="#2b644d" text-anchor="start">Instruction · wrist RGB</text>
+  <text x="72" y="475" font-size="22" font-weight="400" fill="#2b644d" text-anchor="start">Measured state</text>
+  <text x="488" y="183" font-size="24" font-weight="600" fill="#9c4827" text-anchor="end">Action</text>
+  <text x="488" y="215" font-size="24" font-weight="600" fill="#9c4827" text-anchor="end">chunk</text>
+  <text x="488" y="428" font-size="24" font-weight="600" fill="#9c4827" text-anchor="end">Mapped</text>
+  <text x="488" y="460" font-size="24" font-weight="600" fill="#9c4827" text-anchor="end">actions</text>
+  <rect x="24" y="264" width="512" height="108" rx="12" fill="#234b3c" />
+  <text x="48" y="309" font-size="30" font-weight="650" fill="#fafbf5" text-anchor="start">This repository’s adapter</text>
+  <text x="48" y="345" font-size="23" font-weight="400" fill="#cce3d5" text-anchor="start">Frame mapping · robot control</text>
+  <path d="M40 518 H520" stroke="#c7d1c8" stroke-width="1.2" />
+  <text x="40" y="565" font-size="34" font-weight="650" fill="#243b32" text-anchor="start">RoboLab</text>
+  <text x="40" y="602" font-size="23" font-weight="400" fill="#59685f" text-anchor="start">Simulation environment</text>
+  <g transform="translate(466 549)" fill="none" stroke="#59685f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20 0 L40 11 V33 L20 44 L0 33 V11 Z M0 11 L20 22 L40 11 M20 22 V44" />
+  </g>
+  </g>
+</svg>
