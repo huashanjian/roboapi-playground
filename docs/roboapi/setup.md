@@ -59,7 +59,7 @@ with the builder's `--manifest` option.
 ### 4. Check the simulator without calling the model
 
 ```bash
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --preflight-only --output-folder-name roboapi_preflight
 ```
 
@@ -81,7 +81,7 @@ owner-readable only and run the episode:
 
 ```bash
 chmod 600 "$ROBOAPI_TOKEN_FILE"
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --output-folder-name roboapi_single
 ```
 

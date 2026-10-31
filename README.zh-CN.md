@@ -5,13 +5,11 @@
 [![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![代码许可证](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-使用提供的 Franka/Robotiq 机器人组件和腕部鱼眼相机标定，在 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 操作任务中尝试 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 策略。
+在 Isaac Sim 中用 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 策略运行 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 的 120 个操作任务。机器人为经过标定的 Franka/Robotiq 构型，配腕部鱼眼相机。
 
-这个 playground 将 RoboAPI 作为外部策略服务调用。本仓库的代码负责把公开 API 接入 RoboLab、组装仿真机器人并保存运行日志，沿用 RoboLab 的任务定义、回合执行流程和成功判定。
+仿真适配层把腕部图像和实测的机器人状态发给 RoboAPI 服务，执行返回的动作块，并记录每一次请求。打开任意一个回合，都能看到策略收到了什么、做了什么。
 
-[任务演示](#任务演示) · [动手试试](#动手试试) · [运行演示任务](#运行演示任务) · [代码导览](#代码导览)
-
-[接入说明](#接入说明) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [文档导航](#文档导航)
+[任务演示](#任务演示) · [动手试试](#动手试试) · [代码导览](#代码导览) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [文档导航](#文档导航)
 
 <a id="任务演示"></a>
 
@@ -24,6 +22,14 @@
 ![机器人挪动灰色收纳箱，随后抓起鼠标并放入箱中。](docs/media/roboapi/electronics-preview.gif)
 
 机器人先挪动收纳箱，再抓起鼠标并放入箱中。
+
+### 策略看到的画面
+
+> 把白杯叠放在一起。
+
+![左为腕部鱼眼画面，右为同一回合的外部视角，机器人把一只白杯叠到另一只上。](docs/media/roboapi/mug-stacking-wrist-preview.gif)
+
+左：策略收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。
 
 <table width="100%">
   <tr>
@@ -40,50 +46,44 @@
   </tr>
 </table>
 
-以上为仿真回放节选，录像时长不含等待 API 响应的时间。画面采用外部观察视角，策略实际接收的是腕部相机图像。
+以上为仿真回放节选。每次等待 API 响应时，仿真时间暂停。
 
 <a id="动手试试"></a>
 
 ## 🛝 动手试试
 
-需要 **Python 3.11、Isaac Sim 5.1 和 Isaac Lab 2.3.2.post1**。先按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)克隆仓库，安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。
+需要 **Python 3.11、Isaac Sim 5.1 和 Isaac Lab 2.3.2.post1**，不需要实体机器人。先按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)克隆仓库，安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。资产包包含工具组件以及相机和执行器标定文件；Panda 几何文件和基准场景需要另行准备，详见[所需资产](docs/roboapi/setup.md#required-assets)。
 
-在仓库根目录执行预检查，确认机器人、夹爪与相机可以正常运行；这一步不调用模型：
+在仓库根目录执行预检查，确认机器人、夹爪与相机工作正常。这一步不调用模型：
 
 ```bash
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --preflight-only --output-folder-name roboapi_preflight
 ```
 
 配置 API 密钥后，运行一个回合：
 
 ```bash
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --output-folder-name roboapi_single
 ```
 
 预检查报告位于 `output/roboapi_preflight/preflight.json`，回合产物保存在 `output/roboapi_single/`。其他任务见 [RoboLab 任务目录](robolab/tasks/README.md)。
 
-短时间试运行时，显式指定 `--task` 和 `--num-runs`。两者均省略时，常规评测默认对全部 120 个任务各运行 10 个回合；同一输出目录中已完成的回合会被跳过。
+短时间试运行时，显式指定 `--task` 和 `--num-runs`。两者都省略时，运行器会启动完整评测：全部 120 个任务，每个任务 10 个回合。
 
 <a id="运行演示任务"></a>
 
-## 🧾 运行演示任务
+### 运行叠杯演示
 
-完成安装并加载 `.env.local` 后，用以下命令分别运行三个展示任务。每个任务运行一个新回合，随机种子为 0，使用当前配置的模型：
+以下命令用[策略看到的画面](#策略看到的画面)中的任务和随机种子，以当前配置的模型运行一个回合：
 
 ```bash
-policies/roboapi/run.sh --task ElectronicsInBinTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name electronics_example
-policies/roboapi/run.sh --task Stack3RubiksCubeTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name stacking_example
-policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
+policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
   --model "$ROBOAPI_MODEL" --output-folder-name mug_example
 ```
 
-结果保存在 `output/` 下对应的三个目录中。随机种子控制回合中的随机数生成；这些任务仍沿用 RoboLab 的固定物体布局。更换模型或标定配置时，使用新的输出目录名。
-
-三个 GIF 对应的原始随机种子、实际模型版本与回合日志尚未公开。以上命令按当前配置运行相同任务，不代表原录像的运行条件。
+结果保存在 `output/mug_example/`。同一目录中已完成的回合会被跳过，更换模型或标定配置时请换一个目录名。
 
 <a id="代码导览"></a>
 
@@ -95,7 +95,7 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
   <img src="docs/media/roboapi/integration-flow.zh-CN.png" alt="仿真适配层向外部 RoboAPI 策略服务发送 RoboLab 观测及执行回执，再将返回的动作块转换并执行于仿真环境。" width="960" />
 </p>
 
-[`client.py`](policies/roboapi/client.py) 连接以下观测与动作。物体状态和任务特权观测留在仿真端。
+策略只看到腕部图像、指令和实测状态，并返回一个动作块。[`client.py`](policies/roboapi/client.py) 按下表打包和解析这些数据：
 
 | 数据 | 表示方式 |
 | --- | --- |
@@ -104,7 +104,7 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 | 实测状态 | 工具位置（米）、姿态与夹爪开口比例 |
 | 返回的动作块 | K × 8 个数值，API 传输顺序为 `[x, y, z, qx, qy, qz, qw, gripper]` |
 
-[RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)规定，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开）。K 由服务端决定。本仓库适配器的内部位姿和归档 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
+按照 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开），K 由服务端决定。适配器内部的位姿和归档的 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
 
 | 文件 | 对应实现 |
 | --- | --- |
@@ -120,38 +120,20 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 <a id="设计说明"></a>
 <a id="接入说明"></a>
 
-## 🧩 RoboAPI 接入说明
+### 各部分如何衔接
 
-本节说明本仓库怎样使用 RoboAPI 的公开接口，以及怎样将提供的标定参数加载到仿真中。服务端的接口定义见 RoboAPI 的[模型接口文档](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)和[硬件适配接口文档](https://developers.pokebot.com/zh/docs/roboapi/latest/hardware-adapters)。
-
-### 将 API 位姿对应到仿真工具
-
-在当前仿真配置中，RoboAPI 返回的目标位姿对应法兰中心的 `tool0`，而非指尖。本地构建工具将提供的末端工具、夹爪和相机整体安装在 `panda_link7` 上：位置沿局部 Z 轴偏移 107 mm，姿态绕 Z 轴旋转 +90°。仿真测得的 `tool0` 位姿已经包含这个装配变换。
-
-API 使用的策略坐标系与这台仿真机器人的基坐标系原点重合，坐标轴方向不同。适配器中的 [`tool_to_policy_pose`](policies/roboapi/client.py) 对 4 × 4 位姿变换矩阵作左乘，完成二者之间的转换：
+**位姿。** API 给出的目标位姿作用于法兰中心的 `tool0`。策略坐标系与机器人基坐标系原点重合，绕 Z 轴旋转：
 
 ```text
 T_policy = Rz(-90°) @ T_robot_tool0
 T_robot_tool0 = Rz(+90°) @ T_policy
 ```
 
-例如，位置 `(0.3, 0.1, 0.4)` 米转换后为 `(0.1, -0.3, 0.4)` 米，姿态也随参考系一起旋转。检查返回动作时，按上述逆变换映射回仿真坐标系；额外应用装配旋转会使工具多转一次。[坐标测试](tests/test_roboapi_client.py) 覆盖双向转换和装配旋转不重复应用的情况。
+例如，机器人坐标系中的位置 `(0.3, 0.1, 0.4)` 米，在策略坐标系中为 `(0.1, -0.3, 0.4)` 米。工具安装、逆运动学和负载补偿见[控制说明](docs/roboapi/control.md)。
 
-仿真端的 [`arm_action.py`](policies/roboapi/arm_action.py) 将 PhysX 给出的刚体质心处雅可比矩阵转换到控制点 `tool0`，并补偿附加工具的重力负载。这些操作属于本地控制器实现，具体公式和关节设置见[控制说明](docs/roboapi/control.md)。
+**动作块。** 运行器以 **30 Hz** 逐行执行返回的动作块，每行推进八个 **240 Hz** 物理步；执行完毕后发送新观测，并附上已执行行数的回执。一个 12 行的动作块对应 0.4 秒仿真时间。会话协议见[协议与评测](docs/roboapi/evaluation.md)。
 
-### 执行返回的动作块并上报进度
-
-本运行器请求一个动作块，按顺序执行各行，再带着新观测发起下一次请求。例如，在本地 **30 Hz** 控制频率下，一个 12 步响应对应 0.4 秒仿真时间，每个动作推进八个 **240 Hz** 物理步。适配器使用服务端返回的动作块长度。同步等待 API 响应期间，仿真时间暂停，因此回放速度不包含网络等待时间。
-
-[`run.py`](policies/roboapi/run.py) 只在 `env.step` 成功返回后确认一个动作已执行。动作块结束时，`client.py` 记录完成步数，`transport.py` 按 RoboAPI 的执行回执格式，在下次请求中与新观测一起发送。如果回合在动作块中途结束，回执记录已执行的前缀，并将该块标为中断。查看回合日志时，可以对照返回的动作块与回执，确认实际执行到了哪一步。
-
-### 加载相机和夹爪标定
-
-提供的机器人组件包含腕部相机安装外参和原生 F-theta 鱼眼设置。[`camera.py`](policies/roboapi/camera.py) 使用组件中的 `OmniLensDistortionFthetaAPI` 光学参数，并读取标定文件。针对 640 × 360 输入，将 `K_1280x720` 的前两行缩放为一半，畸变系数和外参保持原值。适配器直接发送渲染图像，不额外裁剪、旋转或去畸变。
-
-夹爪部分由 [`gripper_response.py`](policies/roboapi/gripper_response.py) 从执行器标定中读取命令延迟、目标更新周期、一阶响应参数，以及张开和闭合的速度限制。**v1.0.0 资产包**提供的参数为 100 ms 命令延迟、50 ms 目标更新周期和 150 ms 编码器采样周期，量化步长为一个原始编码器计数。
-
-适配器上报的是仿真主关节位置经过编码器采样与量化后的测量值。检查抓取过程时，可将这个测量值与期望开口对照：响应滞后、接触和采样都可能使两者不同。发送给 RoboAPI 的观测保留测得的开口比例。
+**标定。** 相机使用资产包中的原生 F-theta 鱼眼光学参数渲染，适配器直接发送渲染出的图像。夹爪的延迟、更新周期和速度限制来自执行器标定，观测上报测得的开口比例。字段格式见[资产输入约定](docs/roboapi/setup.md#input-contract)。
 
 <a id="运行记录与评测"></a>
 
@@ -169,18 +151,18 @@ T_robot_tool0 = Rz(+90°) @ T_policy
 
 预检查使用独立的输出目录。检查安装时，先看其中的 `preflight.json`、`wrist_initial.png` 和 `runtime_camera.json`。
 
-运行器支持 **120 个 RoboLab 任务定义**，每回合统一采用 **120 秒仿真时长**，最多执行 **90 个动作块**。GIF 展示选取的运行片段，仓库尚未包含完整任务集的成功率或模型对比结果。机器人、相机与时限设置见[评测条件](docs/roboapi/evaluation.md#evaluation-conditions)，批量执行与结果汇总见[完整评测工具](docs/roboapi/evaluation.md#complete-evaluation-tools)。
+运行器覆盖全部 **120 个 RoboLab 任务定义**。每回合最长 **120 秒仿真时间**、最多 **90 个动作块**，判定成功时提前结束。本仓库提供完整评测所需的工具，不附带评测分数。用[完整评测工具](docs/roboapi/evaluation.md#complete-evaluation-tools)可以调度全部任务并汇总结果；与其他 RoboLab 结果对比时，请注明[评测条件](docs/roboapi/evaluation.md#evaluation-conditions)。
 
 <a id="查看一个回合"></a>
 
 ## 🔬 查看一个回合
 
-运行电子设备收纳示例后，打开 `output/electronics_example/ElectronicsInBinTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同名 JSON 保存 `pose_wxyz`、`native_tool_pose_wxyz`、`gripper_open` 和任务指令。如果查询成功，`chunk_0000.json` 保存针对这次观测返回的动作块。
+运行叠杯演示后，打开 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同名 JSON 保存 `pose_wxyz`、`native_tool_pose_wxyz`、`gripper_open` 和任务指令。`chunk_0000.json` 保存针对这次观测返回的动作块。
 
 在仓库根目录执行以下命令，用 Python 标准库查看这个回合：
 
 ```bash
-python - output/electronics_example/ElectronicsInBinTask/run_0_api <<'PY'
+python - output/mug_example/StackWhiteMugsTask/run_0_api <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -204,17 +186,28 @@ else:
 PY
 ```
 
-在 `events.jsonl` 中找到相同 `request_id` 的 `execution_feedback` 条目，可以看到实际执行步数以及动作块是否完成。若继续发起查询，下一编号的观测就记录该动作块之后测得的状态。`summary.json` 中的 `status` 表示 API 客户端的运行状态；任务是否成功另存于本次运行的 `episode_results.jsonl`。
+在 `events.jsonl` 中找到相同 `request_id` 的 `execution_feedback` 条目，可以看到实际执行步数以及动作块是否完成。下一编号的观测记录该动作块之后测得的状态。`summary.json` 中的 `status` 表示 API 客户端的运行状态，任务是否成功记录在本次运行的 `episode_results.jsonl` 中。
 
 <a id="修改与扩展"></a>
 
 ## 🛠️ 修改与扩展
 
-**更换模型。** 在 `.env.local` 中设置 `ROBOAPI_MODEL`，需要时同时修改 `ROBOAPI_BASE_URL`，然后执行 `set -a; source .env.local; set +a` 重新加载，再启动新进程。服务须实现 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)。使用模型别名时，会话在创建时解析并固定实际版本。可对照 `manifest.json` 中请求的 `model` 与 `summary.json` 中的 `resolved_model`。
+**更换模型。** 在 `.env.local` 中设置 `ROBOAPI_MODEL`，需要时同时修改 `ROBOAPI_BASE_URL`，然后执行 `set -a; source .env.local; set +a` 重新加载，再启动新进程。任何实现了 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)的服务都可以接入。使用模型别名时，会话在创建时固定一个实际版本，可对照 `manifest.json` 中请求的 `model` 与 `summary.json` 中的 `resolved_model`。
 
-**调整相机或夹爪标定。** 用 `ROBOAPI_CALIBRATION` 和 `ROBOAPI_ACTUATOR` 指向自己的标定文件；更换相机组件时，还要同步设置 `ROBOAPI_ASSEMBLY_USD` 和 `ROBOAPI_CAMERA_PRIM`。重新加载配置后，执行 `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset` 重建机器人，再用新的输出目录运行预检查。查看腕部图像、运行时相机变换和 `gripper_validation`，之后再运行新回合。[资产输入约定](docs/roboapi/setup.md#input-contract) 列出了 JSON 字段和 USD 结构；只改 JSON 路径不会更新已构建的机器人。
+**调整相机或夹爪标定。** 用 `ROBOAPI_CALIBRATION` 和 `ROBOAPI_ACTUATOR` 指向自己的标定文件；更换相机组件时，同步设置 `ROBOAPI_ASSEMBLY_USD` 和 `ROBOAPI_CAMERA_PRIM`。重新加载配置后，执行 `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset` 重建机器人，再用新的输出目录运行预检查。确认腕部图像、运行时相机变换和 `gripper_validation` 正常后，再运行新回合。
 
 **修改适配器。** 数据映射从 `client.py` 的 `_extract_observation` 和 `_unpack_response` 入手，会话协议在 `transport.py`，仿真观测与控制配置在 `registration.py`。这些接口之间的四元数顺序、坐标系和步进后确认逻辑需要保持一致。[离线检查](#测试)中，`test_roboapi_client.py` 覆盖坐标变换与动作块执行，`test_roboapi_transport.py` 覆盖会话与回执，`test_roboapi_response.py` 和 `test_roboapi_gripper.py` 覆盖夹爪响应及实测反馈。涉及渲染视角或物理跟踪的修改，还需要运行仿真预检查和新的任务回合。
+
+<a id="测试"></a>
+
+**运行离线检查。** 在独立的 Python 环境中执行：
+
+```bash
+python -m pip install -r requirements-roboapi-tests.txt
+scripts/test_roboapi.sh
+```
+
+这些检查无需 Isaac Sim，也不调用模型。安装 PyTorch 后，还会在 CPU 上测试夹爪动作缓冲区。
 
 <a id="排错"></a>
 
@@ -227,26 +220,6 @@ PY
 | 夹爪松开或频繁调整 | 对照 `chunk_*.json` 中返回的开合指令与 `observation_*.json` 中测得的开口比例。查看预检查的 `gripper_validation`，再检查[响应模型](policies/roboapi/gripper_response.py)和[仿真关节控制](policies/roboapi/gripper_action.py)。 |
 | 仿真能运行，但 API 调用失败 | 检查 `ROBOAPI_TOKEN_FILE` 及 [`.env.example`](.env.example) 中的 API 地址、模型设置。查看回合的 `summary.json` 和已有的 `http_*_response.json`；会话与响应校验在 [`transport.py`](policies/roboapi/transport.py) 中。 |
 
-<details>
-<summary>环境与资产问题</summary>
-
-**需要实体机器人吗？** 不需要，这些任务在 Isaac Sim 中运行。
-
-**标定资产包包含什么？** 工具组件、相机和执行器标定文件。Panda 几何文件、基准场景和仿真器需要另行准备，详见[所需资产](docs/roboapi/setup.md#required-assets)。
-
-</details>
-
-## 测试
-
-在独立的 Python 环境中运行离线检查：
-
-```bash
-python -m pip install -r requirements-roboapi-tests.txt
-scripts/test_roboapi.sh
-```
-
-这些检查无需 Isaac Sim，也不调用模型。安装 PyTorch 后，还会在 CPU 上测试夹爪动作缓冲区。
-
 ## 文档导航
 
 - [安装、本地配置与标定资产](docs/roboapi/setup.md)
@@ -258,7 +231,7 @@ scripts/test_roboapi.sh
 
 ## 🙏 致谢与许可证
 
-本项目基于 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)，通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用机器人策略。
+本项目基于 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)，原样使用其任务定义、回合执行流程和成功判定，并通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用机器人策略。
 
 代码采用 [Apache 2.0 许可证](LICENSE)，保留上游历史与 NVIDIA 版权声明。机器人、工具和基准资产各自遵循其原有许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 

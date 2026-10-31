@@ -5,17 +5,15 @@
 [![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-Try [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on
-[NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks with a
-Franka/Robotiq robot and a wrist fisheye camera, using the supplied rig calibration.
+Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on the 120
+[NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks in Isaac Sim,
+with a calibrated Franka/Robotiq rig and a wrist fisheye camera.
 
-This playground calls RoboAPI as an external policy service. The code here
-connects its public API to RoboLab, assembles the simulation rig and saves
-rollout logs. RoboLab's task definitions, episode loop and success checks are retained.
+The simulation adapter sends the wrist image and measured robot state to the RoboAPI service,
+executes the returned action chunks and logs every request, so you can open any
+episode and see what the policy saw and did.
 
-[Demos](#demos) · [Try it out](#try-it-out) · [Run the demo tasks](#run-the-demo-tasks) · [Codebase tour](#codebase-tour)
-
-[Integration notes](#integration-notes) · [Inspect a rollout](#inspecting-a-rollout) · [Extend the integration](#extending-the-integration) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Codebase tour](#codebase-tour) · [Inspect a rollout](#inspecting-a-rollout) · [Extend](#extending-the-integration) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -28,6 +26,15 @@ rollout logs. RoboLab's task definitions, episode loop and success checks are re
 ![The robot moves the grey bin, picks up the mouse and places it inside.](docs/media/roboapi/electronics-preview.gif)
 
 The robot moves the bin, then picks up the mouse and places it inside.
+
+### What the policy sees
+
+> Stack the white mugs on top of each other.
+
+![Left, the wrist fisheye view; right, an external view of the same episode, as the robot stacks one white mug on another.](docs/media/roboapi/mug-stacking-wrist-preview.gif)
+
+Left: the wrist camera image the policy receives. Right: the same episode from
+an external viewport. Preview at 4× replay speed.
 
 <table width="100%">
   <tr>
@@ -44,31 +51,33 @@ The robot moves the bin, then picks up the mouse and places it inside.
   </tr>
 </table>
 
-Selected simulation rollouts. Recording durations reflect replay time and exclude
-API waiting time. The external camera shown here is for viewing; the policy
-receives the wrist camera image.
+Selected simulation rollouts. Simulated time pauses while the policy waits for
+each response.
 
 <a id="try-it-out"></a>
 
 ## 🛝 Try it out!
 
-Start with **Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1**.
+You need **Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1**; no physical
+robot is required.
 Follow the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
 to clone the repository, install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
-configure `.env.local` and build the robot.
+configure `.env.local` and build the robot. The rig bundle contains the tool
+assembly and the camera and actuator calibration. The Panda geometry and
+benchmark scenes come separately; see [required assets](docs/roboapi/setup.md#required-assets).
 
-From the repository root, first check the robot, gripper and camera without
-calling the model:
+From the repository root, check the robot, gripper and camera. This step makes
+no model calls:
 
 ```bash
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --preflight-only --output-folder-name roboapi_preflight
 ```
 
 Then, with your API key configured, run one episode:
 
 ```bash
-policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
+policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --output-folder-name roboapi_single
 ```
 
@@ -77,32 +86,23 @@ The episode writes to `output/roboapi_single/`. More tasks are listed in the
 [RoboLab task catalog](robolab/tasks/README.md).
 
 Keep `--task` and `--num-runs` explicit for a short trial. If both are omitted,
-a normal evaluation targets all 120 tasks with 10 episodes per task; completed
-episodes in the same output directory are skipped.
+the runner starts a full evaluation: all 120 tasks, 10 episodes each.
 
 <a id="run-the-demo-tasks"></a>
 
-## 🧾 Run the demo tasks
+### Run the mug-stacking demo
 
-With the setup complete and `.env.local` loaded, these commands run one new
-episode of each featured task, using seed 0 and your configured model:
+This command runs the task and seed shown in [What the policy sees](#what-the-policy-sees)
+with your configured model:
 
 ```bash
-policies/roboapi/run.sh --task ElectronicsInBinTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name electronics_example
-policies/roboapi/run.sh --task Stack3RubiksCubeTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name stacking_example
-policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
+policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
   --model "$ROBOAPI_MODEL" --output-folder-name mug_example
 ```
 
-The outputs go to the three named directories under `output/`. Seeds control
-the episode RNG; these tasks retain their fixed RoboLab object layouts.
-Use a new output name when changing the model or calibration.
-
-The GIFs' original seed, resolved model version and episode traces have not been
-published. These commands run the same tasks with your current configuration;
-they do not specify the original recordings' conditions.
+The run writes to `output/mug_example/`. Episodes already completed in a
+directory are skipped, so pick a new name when you change the model or
+calibration.
 
 <a id="codebase-tour"></a>
 
@@ -115,8 +115,9 @@ returned actions into simulator coordinates and reports their execution:
   <img src="docs/media/roboapi/integration-flow.png" alt="The simulation adapter sends RoboLab observations and execution receipts to the external RoboAPI policy service, then maps and executes returned action chunks in the simulator." width="960" />
 </p>
 
-[`client.py`](policies/roboapi/client.py) connects the following observations and
-actions. Object states and privileged task observations stay in the simulator.
+The policy sees only the wrist image, the instruction and the measured state,
+and returns an action chunk. [`client.py`](policies/roboapi/client.py) packs and
+unpacks them as follows:
 
 | Value | Representation |
 | --- | --- |
@@ -125,11 +126,10 @@ actions. Object states and privileged task observations stay in the simulator.
 | Measured state | Tool position in metres, orientation and gripper opening ratio |
 | Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` on the API wire |
 
-The [RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
-specifies **absolute** tool poses and an opening ratio (`0` closed, `1` open).
-K is chosen by the server. Inside this repository's adapter, poses and archived
-`sim_actions` use quaternion order **WXYZ**; `transport.py` converts to/from the
-API's **XYZW** order.
+Each action is an **absolute** tool pose plus an opening ratio (`0` closed,
+`1` open), as defined by the [RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
+The server chooses K. Inside the adapter, poses and archived `sim_actions` use
+quaternion order **WXYZ**; `transport.py` converts to and from the API's **XYZW**.
 
 | File | What to look for |
 | --- | --- |
@@ -145,77 +145,29 @@ API's **XYZW** order.
 <a id="design-notes"></a>
 <a id="integration-notes"></a>
 
-## 🧩 Using RoboAPI in RoboLab
+### How the pieces fit
 
-These notes explain how this repository uses RoboAPI's public interface and
-loads the supplied calibration into the simulator. For the service's interface
-definitions, see the RoboAPI [model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
-and [hardware adapter documentation](https://developers.pokebot.com/docs/roboapi/latest/hardware-adapters).
-
-### Matching API poses to the simulated tool
-
-In this simulation setup, RoboAPI pose targets are mapped to `tool0` at the
-flange centre, rather than the fingertips. The local assembly builder places the
-supplied tool, gripper and camera 107 mm along `panda_link7`'s local Z axis,
-with a +90° Z rotation. The simulator's measured `tool0` pose already includes
-that mounting transform.
-
-The API policy frame and this robot's base frame share an origin but use
-different axes. The adapter's [`tool_to_policy_pose`](policies/roboapi/client.py)
-converts between them by left-multiplying the 4 × 4 pose transform:
+**Poses.** Target poses from the API apply to `tool0` at the flange centre.
+The policy frame shares the robot base origin, rotated about Z:
 
 ```text
 T_policy = Rz(-90°) @ T_robot_tool0
 T_robot_tool0 = Rz(+90°) @ T_policy
 ```
 
-For example, position `(0.3, 0.1, 0.4)` m becomes `(0.1, -0.3, 0.4)` m.
-Orientation rotates with it. When checking a returned action, apply the inverse
-frame mapping; an additional mounting rotation would rotate the tool twice.
-The [frame tests](tests/test_roboapi_client.py) exercise both directions and
-this mounting case.
+For example, position `(0.3, 0.1, 0.4)` m in the robot frame is
+`(0.1, -0.3, 0.4)` m in the policy frame. The tool mount, IK and load
+compensation are described in the [control notes](docs/roboapi/control.md).
 
-On the simulation side, [`arm_action.py`](policies/roboapi/arm_action.py) shifts
-the PhysX Jacobian from the body's centre of mass to the controlled `tool0`
-origin and compensates for the attached tool's gravitational load. These are
-local controller operations; their equations and joint settings are in the
-[control notes](docs/roboapi/control.md).
+**Chunks.** The runner executes a returned chunk row by row at **30 Hz**, with
+eight **240 Hz** physics steps per row, then sends a fresh observation together
+with an execution receipt for the rows that ran. A 12-row chunk covers 0.4 s of
+simulated time. The session protocol is in [protocol and evaluation](docs/roboapi/evaluation.md).
 
-### Executing returned chunks and reporting progress
-
-This runner requests a chunk, executes its rows in order, then makes another
-request with a fresh observation. At its **30 Hz** control rate, a 12-row
-response, for example, spans 0.4 seconds of simulated time. Each row advances
-eight **240 Hz** physics steps. The adapter uses the length returned by the
-service. Its synchronous API call pauses simulated time, so replay speed
-does not include network latency.
-
-[`run.py`](policies/roboapi/run.py) acknowledges an action only after `env.step`
-returns successfully. At the chunk boundary, `client.py` records the executed
-count; `transport.py` sends it with the next observation using RoboAPI's execution
-receipt format. If the episode ends partway through a chunk, the receipt records
-the executed prefix as interrupted. When reading a rollout, compare the returned
-chunk with this receipt to see how much actually ran.
-
-### Loading the camera and gripper calibration
-
-The supplied rig includes the wrist-camera mounting transform and native
-F-theta lens settings. [`camera.py`](policies/roboapi/camera.py) uses the
-assembly's `OmniLensDistortionFthetaAPI` optics and reads the calibration file.
-For the 640 × 360 input, it scales the first two rows of `K_1280x720` by 0.5;
-distortion coefficients and extrinsics are unchanged. The adapter sends the
-rendered image without cropping, rotation or a separate undistortion pass.
-
-For the gripper, [`gripper_response.py`](policies/roboapi/gripper_response.py)
-loads command delay, target update cadence, first-order response and directional
-speed limits from the actuator calibration. The **v1.0.0 rig bundle** supplies
-a 100 ms command delay, 50 ms target updates and 150 ms encoder sampling,
-with one raw encoder count of quantization.
-
-The adapter reports the simulated master joint's measured position after encoder
-sampling and quantization. When inspecting a grasp, compare that measurement
-with the requested opening: response lag, contact and sampling can make them
-differ. The observation sent to RoboAPI contains the measured opening ratio.
+**Calibration.** The camera renders with the rig's native F-theta fisheye optics,
+and the adapter sends that image as rendered. Gripper delay, cadence and speed
+limits come from the actuator calibration; observations report the measured
+opening. Field formats are listed in the [asset input contract](docs/roboapi/setup.md#input-contract).
 
 <a id="runs-and-evaluation"></a>
 
@@ -236,28 +188,28 @@ Each episode also writes files under `<task>/run_<n>_api/`:
 Preflight writes to its own output directory. Start with `preflight.json`,
 `wrist_initial.png` and `runtime_camera.json` when checking an installation.
 
-The runner supports **120 RoboLab task definitions**, with a uniform
-**120-second simulated horizon** and at most **90 action chunks** per episode.
-The demo GIFs show selected rollouts; aggregate success rates and model
-comparisons are not included in this repository. The custom robot, camera and
-time limits are described in [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
-Use the [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
-to schedule all tasks and collect results.
+The runner covers all **120 RoboLab task definitions**. Each episode runs for at
+most **120 simulated seconds** and **90 action chunks**, and ends early when the
+task's success check passes.
+The repository includes the tools for a full evaluation but no scores.
+The [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
+schedule every task and collect the results. When comparing with other RoboLab
+results, report the [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
 
 <a id="inspecting-a-rollout"></a>
 
 ## 🔬 Inspecting a rollout
 
-After running the electronics example, open
-`output/electronics_example/ElectronicsInBinTask/run_0_api/observation_0000.png`.
+After running the mug-stacking demo, open
+`output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`.
 This is the wrist image sent on the first query. The matching JSON contains
 `pose_wxyz`, `native_tool_pose_wxyz`, `gripper_open` and the instruction.
-`chunk_0000.json` holds the response to that observation, if the query succeeded.
+`chunk_0000.json` holds the response to that observation.
 
 From the repository root, inspect that episode with Python's standard library:
 
 ```bash
-python - output/electronics_example/ElectronicsInBinTask/run_0_api <<'PY'
+python - output/mug_example/StackWhiteMugsTask/run_0_api <<'PY'
 import json
 import sys
 from pathlib import Path
@@ -283,9 +235,9 @@ PY
 
 Find the same `request_id` in `events.jsonl`: its `execution_feedback` entry
 reports how many actions ran and whether the chunk completed. The next numbered
-observation shows the measured state after that chunk, when another query occurs.
+observation shows the measured state after that chunk.
 `summary.json`'s `status` describes the API client lifecycle; task success is
-recorded separately in the run's `episode_results.jsonl`.
+recorded in the run's `episode_results.jsonl`.
 
 <a id="extending-the-integration"></a>
 
@@ -293,19 +245,17 @@ recorded separately in the run's `episode_results.jsonl`.
 
 **Try another model.** Set `ROBOAPI_MODEL` and, if needed, `ROBOAPI_BASE_URL` in
 `.env.local`, then reload it with `set -a; source .env.local; set +a` before
-launching a new process. The endpoint must implement the
-[RoboAPI model API contract](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
-An alias is resolved when the session starts; the session pins that version.
-Compare `manifest.json`'s requested `model` with `summary.json`'s `resolved_model`.
+launching a new process. Any endpoint that implements the
+[RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
+can be used. An alias is pinned to one version when the session starts: compare
+`manifest.json`'s requested `model` with `summary.json`'s `resolved_model`.
 
 **Change the camera or gripper calibration.** Point `ROBOAPI_CALIBRATION` and
 `ROBOAPI_ACTUATOR` at your calibration files. A different camera assembly also
-needs `ROBOAPI_ASSEMBLY_USD` and `ROBOAPI_CAMERA_PRIM` to match. After reloading
-the configuration, rebuild with `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset`
-and repeat the preflight command with a fresh output name. Check the wrist image,
+needs `ROBOAPI_ASSEMBLY_USD` and `ROBOAPI_CAMERA_PRIM`. After reloading the
+configuration, rebuild with `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset`
+and repeat the preflight with a fresh output name. Check the wrist image,
 runtime camera transform and `gripper_validation` before starting a new episode.
-The [asset input contract](docs/roboapi/setup.md#input-contract) lists the JSON
-fields and USD structure; editing a JSON path alone does not update an already built robot.
 
 **Change the adapter.** Start at `client.py`'s `_extract_observation` and
 `_unpack_response` for data mapping, `transport.py` for the session protocol, and
@@ -316,6 +266,18 @@ frame conversion and chunk execution, `test_roboapi_transport.py` covers session
 and receipts, and `test_roboapi_response.py` / `test_roboapi_gripper.py` cover
 gripper response and measured feedback. Changes to rendered views or physical
 tracking also need a simulator preflight and a new task run.
+
+<a id="tests"></a>
+
+**Run the offline checks.** Use a separate Python environment:
+
+```bash
+python -m pip install -r requirements-roboapi-tests.txt
+scripts/test_roboapi.sh
+```
+
+These checks run without Isaac Sim or model calls. With PyTorch installed they
+also exercise the gripper action buffers on CPU.
 
 <a id="troubleshooting"></a>
 
@@ -328,29 +290,6 @@ tracking also need a simulator preflight and a new task run.
 | Gripper releases or keeps correcting | Compare the returned opening commands in `chunk_*.json` with measured opening in `observation_*.json`. Inspect preflight `gripper_validation`, then the [response model](policies/roboapi/gripper_response.py) and [simulated joint control](policies/roboapi/gripper_action.py). |
 | Simulator runs, but API calls fail | Check `ROBOAPI_TOKEN_FILE` and the endpoint/model settings in [`.env.example`](.env.example). Read the episode's `summary.json` and any `http_*_response.json` files; [`transport.py`](policies/roboapi/transport.py) handles session and response validation. |
 
-<details>
-<summary>Environment and asset questions</summary>
-
-**Do I need a physical robot?** No. These tasks run in Isaac Sim.
-
-**What comes with the rig bundle?** The tool assembly and camera/actuator
-calibration. Obtain the Panda geometry, benchmark scenes and simulator
-separately; see [required assets](docs/roboapi/setup.md#required-assets).
-
-</details>
-
-## Tests
-
-Run the offline checks in a separate Python environment:
-
-```bash
-python -m pip install -r requirements-roboapi-tests.txt
-scripts/test_roboapi.sh
-```
-
-These checks run without Isaac Sim or model calls. With PyTorch installed they
-also exercise the gripper action buffers on CPU.
-
 ## Documentation
 
 - [Installation, local configuration and calibrated assets](docs/roboapi/setup.md)
@@ -362,8 +301,9 @@ also exercise the gripper action buffers on CPU.
 
 ## 🙏 Acknowledgements and license
 
-Built on [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab), using the
-[RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policy interface.
+Built on [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab), using its task
+definitions, episode loop and success checks unchanged. Policies are
+called through the [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) interface.
 The code is licensed under [Apache 2.0](LICENSE). Upstream history and NVIDIA
 copyright notices are retained. Robot, tool and benchmark assets retain their
 respective licenses; see [third party notices](THIRD_PARTY_NOTICES.md).
