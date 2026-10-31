@@ -89,10 +89,10 @@ policies/roboapi/run.sh --task ReorientWhiteMugsTask --num-runs 1 --seed 0 \
 
 ## 🗺️ 代码导览
 
-本地适配器向 RoboAPI 服务发送 RoboLab 观测，把返回的动作转换到仿真坐标系，并反馈执行情况：
+仿真适配层向 RoboAPI 服务发送 RoboLab 观测，把返回的动作转换到仿真坐标系，并反馈执行情况：
 
 <p align="center">
-  <img src="docs/media/roboapi/integration-flow.zh-CN.svg" alt="本仓库适配器在 RoboLab 仿真环境与外部 RoboAPI 策略服务之间传递观测和动作，并在后续请求中附上执行回执。" width="560" />
+  <img src="docs/media/roboapi/integration-flow.zh-CN.png" alt="仿真适配层向外部 RoboAPI 策略服务发送 RoboLab 观测及执行回执，再将返回的动作块转换并执行于仿真环境。" width="960" />
 </p>
 
 [`client.py`](policies/roboapi/client.py) 连接以下观测与动作。物体状态和任务特权观测留在仿真端。

@@ -21,3 +21,4 @@
 
 # Keep README previews available without Git LFS.
 docs/media/roboapi/*.gif -filter -diff -merge -text
+docs/media/roboapi/integration-flow*.png -filter -diff -merge -text

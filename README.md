@@ -108,11 +108,11 @@ they do not specify the original recordings' conditions.
 
 ## 🗺️ Codebase tour
 
-The local adapter sends RoboLab observations to the RoboAPI service, maps the
+The simulation adapter sends RoboLab observations to the RoboAPI service, maps the
 returned actions into simulator coordinates and reports their execution:
 
 <p align="center">
-  <img src="docs/media/roboapi/integration-flow.svg" alt="This repository's adapter exchanges observations and actions between the RoboLab simulator and the external RoboAPI policy service, and sends execution receipts with subsequent requests." width="560" />
+  <img src="docs/media/roboapi/integration-flow.png" alt="The simulation adapter sends RoboLab observations and execution receipts to the external RoboAPI policy service, then maps and executes returned action chunks in the simulator." width="960" />
 </p>
 
 [`client.py`](policies/roboapi/client.py) connects the following observations and
