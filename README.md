@@ -12,7 +12,9 @@ calibrated Franka/Robotiq robot and a wrist fisheye camera.
 This fork adds the RoboAPI inference adapter, robot assembly builder and execution
 logging. RoboLab's task definitions, episode loop and success checks are retained.
 
-[Demos](#-demos) · [Try it out](#-try-it-out) · [Codebase tour](#-codebase-tour) · [Runs and evaluation](#-runs-and-evaluation) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Codebase tour](#codebase-tour) · [Runs and evaluation](#runs-and-evaluation) · [Documentation](#documentation)
+
+<a id="demos"></a>
 
 ## 🎬 Demos
 
@@ -42,6 +44,8 @@ The robot moves the bin, then picks up the mouse and places it inside.
 Selected simulation rollouts. Recording durations reflect replay time and exclude
 API waiting time. The external camera shown here is for viewing; the policy
 receives the wrist camera image.
+
+<a id="try-it-out"></a>
 
 ## 🛝 Try it out!
 
@@ -73,6 +77,8 @@ The episode writes to `output/roboapi_single/`. To try the featured task, replac
 Keep `--task` and `--num-runs` explicit for a short trial. If both are omitted,
 a normal evaluation targets all 120 tasks with 10 episodes per task; completed
 episodes in the same output directory are skipped.
+
+<a id="codebase-tour"></a>
 
 ## 🗺️ Codebase tour
 
@@ -114,6 +120,8 @@ flowchart LR
 The [control notes](docs/roboapi/control.md) explain the coordinate conventions,
 tool load compensation and gripper dynamics.
 
+<a id="runs-and-evaluation"></a>
+
 ## 🧾 Runs and evaluation
 
 Under `output/<run-name>/`, `manifest.json` records the code and package versions,
@@ -138,6 +146,8 @@ comparisons are not included in this repository. The custom robot, camera and
 time limits are described in [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
 Use the [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
 to schedule all tasks and collect results.
+
+<a id="troubleshooting"></a>
 
 ## 🩹 Troubleshooting
 
@@ -181,6 +191,8 @@ also exercise the gripper action buffers on CPU.
 - [Coordinate frames, arm and gripper control](docs/roboapi/control.md)
 - [RoboAPI protocol and evaluation](docs/roboapi/evaluation.md)
 - [RoboLab task catalog](robolab/tasks/README.md)
+
+<a id="acknowledgements-and-license"></a>
 
 ## 🙏 Acknowledgements and license
 

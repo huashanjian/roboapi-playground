@@ -9,7 +9,9 @@
 
 本分支加入了 RoboAPI 推理适配器、机器人组件构建工具和执行日志，沿用 RoboLab 的任务定义、回合执行流程和成功判定。
 
-[任务演示](#-任务演示) · [动手试试](#-动手试试) · [代码导览](#-代码导览) · [运行记录与评测](#-运行记录与评测) · [文档导航](#文档导航)
+[任务演示](#任务演示) · [动手试试](#动手试试) · [代码导览](#代码导览) · [运行记录与评测](#运行记录与评测) · [文档导航](#文档导航)
+
+<a id="任务演示"></a>
 
 ## 🎬 任务演示
 
@@ -38,6 +40,8 @@
 
 以上为仿真回放节选，录像时长不含等待 API 响应的时间。画面采用外部观察视角，策略实际接收的是腕部相机图像。
 
+<a id="动手试试"></a>
+
 ## 🛝 动手试试
 
 需要 **Python 3.11、Isaac Sim 5.1 和 Isaac Lab 2.3.2.post1**。先按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)克隆当前分支，安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。
@@ -59,6 +63,8 @@ policies/roboapi/run.sh --task BananaInBowlTask --num-runs 1 \
 预检查报告位于 `output/roboapi_preflight/preflight.json`，回合产物保存在 `output/roboapi_single/`。想试上面的电子设备收纳任务，可以将 `BananaInBowlTask` 换成 `ElectronicsInBinTask`。其他任务见 [RoboLab 任务目录](robolab/tasks/README.md)。
 
 短时间试运行时，显式指定 `--task` 和 `--num-runs`。两者均省略时，常规评测默认对全部 120 个任务各运行 10 个回合；同一输出目录中已完成的回合会被跳过。
+
+<a id="代码导览"></a>
 
 ## 🗺️ 代码导览
 
@@ -92,6 +98,8 @@ flowchart LR
 
 坐标约定、工具负载补偿与夹爪动态响应详见[控制说明](docs/roboapi/control.md)。
 
+<a id="运行记录与评测"></a>
+
 ## 🧾 运行记录与评测
 
 在 `output/<run-name>/` 下，`manifest.json` 记录代码与依赖版本、请求的模型与 API 地址、任务与随机种子列表、相机设置及机器人组件信息。`episode_results.jsonl` 保存各回合结果。
@@ -107,6 +115,8 @@ flowchart LR
 预检查使用独立的输出目录。检查安装时，先看其中的 `preflight.json`、`wrist_initial.png` 和 `runtime_camera.json`。
 
 运行器支持 **120 个 RoboLab 任务定义**，每回合统一采用 **120 秒仿真时长**，最多执行 **90 个动作块**。GIF 展示选取的运行片段，仓库尚未包含完整任务集的成功率或模型对比结果。机器人、相机与时限设置见[评测条件](docs/roboapi/evaluation.md#evaluation-conditions)，批量执行与结果汇总见[完整评测工具](docs/roboapi/evaluation.md#complete-evaluation-tools)。
+
+<a id="排错"></a>
 
 ## 🩹 排错
 
@@ -145,6 +155,8 @@ scripts/test_roboapi.sh
 - [坐标系、机械臂与夹爪控制](docs/roboapi/control.md)
 - [RoboAPI 协议与评测](docs/roboapi/evaluation.md)
 - [RoboLab 任务目录](robolab/tasks/README.md)
+
+<a id="致谢与许可证"></a>
 
 ## 🙏 致谢与许可证
 
