@@ -5,17 +5,17 @@
 [![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies on the 120
-[NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks in Isaac Sim,
-with a calibrated Franka/Robotiq rig and a wrist fisheye camera.
+Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies, such as
+Pokebot's Poke-Aurora, on the 120 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)
+manipulation tasks in Isaac Sim 5.1, with a calibrated Franka/Robotiq rig and a
+wrist fisheye camera.
 
-The simulation adapter sends the wrist image and measured robot state to the RoboAPI service,
-executes the returned action chunks and logs every request, so you can open any
-episode and see what the policy saw and did.
+The policy receives the task instruction, one wrist RGB image, the measured
+flange pose and the gripper opening. The simulation adapter executes the returned
+action chunks and saves every observation, response and execution receipt, so you
+can open any episode and see what the policy saw and did.
 
-This repository started as a fork of NVIDIA RoboLab and is now maintained independently.
-
-[Demos](#demos) · [Try it out](#try-it-out) · [Codebase tour](#codebase-tour) · [Inspect a rollout](#inspecting-a-rollout) · [Extend](#extending-the-integration) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Inspect a rollout](#inspecting-a-rollout) · [Connect your own model](#connect-your-own-model) · [How it works](#codebase-tour) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -39,25 +39,34 @@ The robot moves the bin, then picks up the mouse and places it inside.
     <td width="50%"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="100%" /></td>
   </tr>
   <tr>
-    <td>“Stack the rubiks cubes in a tower”<br />Preview at 3× replay speed.</td>
-    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”</td>
+    <td>“Stack the rubiks cubes in a tower”<br />The robot stacks three Rubik's cubes, adjusting its grasp between placements. Preview at 3× replay speed.</td>
+    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”<br />The robot grasps the sideways white mug and turns its opening upwards.</td>
   </tr>
 </table>
 
-Selected simulation rollouts. Simulated time pauses while the policy waits for
-each response.
+### What the policy sees
+
+> Stack the white mugs on top of each other.
+
+![Left, the wrist fisheye view; right, an external view of the same episode, as the robot stacks one white mug on another.](docs/media/roboapi/mug-stacking-wrist-preview.gif)
+
+Left: the wrist camera image the policy receives. Right: the same episode from
+an external viewport. Preview at 4× replay speed. To run this task yourself, see
+[Run the mug-stacking task](#run-the-demo-tasks).
+
+Selected simulation rollouts. Simulated time pauses while each API request is in
+flight.
 
 <a id="try-it-out"></a>
 
 ## 🛝 Try it out!
 
-You need **Python 3.11, Isaac Sim 5.1 and Isaac Lab 2.3.2.post1**; no physical
-robot is required.
-Follow the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
-to clone the repository, install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
-configure `.env.local` and build the robot. The rig bundle contains the tool
-assembly and the camera and actuator calibration. The Panda geometry and
-benchmark scenes come separately; see [required assets](docs/roboapi/setup.md#required-assets).
+You need **Python 3.11, Isaac Sim 5.1, Isaac Lab 2.3.2.post1** and a RoboAPI
+key; no physical robot is required.
+Complete the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
+once to install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
+configure `.env.local` and build the robot. The Panda geometry and benchmark
+scenes are installed separately; see [required assets](docs/roboapi/setup.md#required-assets).
 
 From the repository root, check the robot, gripper and camera. This step makes
 no model calls:
@@ -67,15 +76,18 @@ policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --preflight-only --output-folder-name roboapi_preflight
 ```
 
-Then, with your API key configured, run one episode:
+Open `output/roboapi_preflight/wrist_initial.png` to check the wrist view.
+`preflight.json` in the same directory holds the robot, gripper and camera checks.
+
+Then run one episode:
 
 ```bash
 policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
   --output-folder-name roboapi_single
 ```
 
-The preflight report is at `output/roboapi_preflight/preflight.json`.
-The episode writes to `output/roboapi_single/`. More tasks are listed in the
+The episode writes to `output/roboapi_single/`; [Inspecting a rollout](#inspecting-a-rollout)
+shows what to open first. More tasks are listed in the
 [RoboLab task catalog](robolab/tasks/README.md).
 
 Keep `--task` and `--num-runs` explicit for a short trial. If both are omitted,
@@ -96,9 +108,59 @@ The run writes to `output/mug_example/`. Episodes already completed in a
 directory are skipped, so pick a new name when you change the model or
 calibration.
 
+<a id="inspecting-a-rollout"></a>
+
+## 🔬 Inspecting a rollout
+
+After running the mug-stacking task, open
+`output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`.
+This is the wrist image sent on the first query. Next to it:
+
+- `observation_0000.json`: the instruction, the measured pose (`pose_wxyz`,
+  `native_tool_pose_wxyz`) and `gripper_open`.
+- `chunk_0000.json`: the actions returned for that observation and the
+  simulator commands they map to.
+- `events.jsonl`: execution feedback for each chunk, keyed by `request_id`.
+
+<details>
+<summary>Print a short summary of the episode with Python's standard library</summary>
+
+```bash
+python - output/mug_example/StackWhiteMugsTask/run_0_api <<'PY'
+import json
+import sys
+from pathlib import Path
+
+episode = Path(sys.argv[1])
+summary = json.loads((episode / "summary.json").read_text())
+for key in ("model", "resolved_model", "status", "executed_steps", "errors"):
+    print(f"{key}: {summary.get(key)}")
+chunks = sorted(episode.glob("chunk_*.json"))
+if chunks:
+    path = chunks[0]
+    chunk = json.loads(path.read_text())
+    obs = json.loads((episode / path.name.replace("chunk_", "observation_")).read_text())
+    print("Measured opening before chunk:", obs["gripper_open"])
+    print("First requested opening:", chunk["gripper_open"][0])
+    print("Returned actions:", len(chunk["sim_actions"]))
+    print("Simulated seconds per action:", chunk["action_dt_s"])
+    print("Request ID:", chunk["request_id"])
+else:
+    print("No action chunk was saved; check status and errors above.")
+PY
+```
+
+</details>
+
+Find the same `request_id` in `events.jsonl`: its `execution_feedback` entry
+reports how many actions ran and whether the chunk completed. The next numbered
+observation shows the measured state after that chunk.
+`summary.json`'s `status` describes the API client lifecycle; task success is
+recorded in the run's `episode_results.jsonl`.
+
 <a id="codebase-tour"></a>
 
-## 🗺️ Codebase tour
+## 🗺️ How it works
 
 The simulation adapter sends RoboLab observations to the RoboAPI service, maps the
 returned actions into simulator coordinates and reports their execution:
@@ -115,7 +177,7 @@ unpacks them as follows:
 | --- | --- |
 | Wrist image | One 360 × 640 × 3 `uint8` RGB image, encoded as a PNG data URL |
 | Instruction | The task's text instruction |
-| Measured state | Tool position in metres, orientation and gripper opening ratio |
+| Measured state | `tool0` (flange centre) position in metres, orientation and gripper opening ratio |
 | Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` on the API wire |
 
 Each action is an **absolute** tool pose plus an opening ratio (`0` closed,
@@ -183,85 +245,65 @@ Preflight writes to its own output directory. Start with `preflight.json`,
 The runner covers all **120 RoboLab task definitions**. Each episode runs for at
 most **120 simulated seconds** and **90 action chunks**, and ends early when the
 task's success check passes.
-The repository includes the tools for a full evaluation but no scores.
 The [complete evaluation tools](docs/roboapi/evaluation.md#complete-evaluation-tools)
 schedule every task and collect the results. When comparing with other RoboLab
 results, report the [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
 
-<a id="inspecting-a-rollout"></a>
+<a id="extending-the-integration"></a>
+<a id="connect-your-own-model"></a>
 
-## 🔬 Inspecting a rollout
+## 🛠️ Connect your own model
 
-After running the mug-stacking task, open
-`output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`.
-This is the wrist image sent on the first query. The matching JSON contains
-`pose_wxyz`, `native_tool_pose_wxyz`, `gripper_open` and the instruction.
-`chunk_0000.json` holds the response to that observation.
+### Use a RoboAPI-compatible service
 
-From the repository root, inspect that episode with Python's standard library:
+Any service that implements the
+[RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
+needs only a configuration change. Set the endpoint and model ID in `.env.local`:
 
-```bash
-python - output/mug_example/StackWhiteMugsTask/run_0_api <<'PY'
-import json
-import sys
-from pathlib import Path
-
-episode = Path(sys.argv[1])
-summary = json.loads((episode / "summary.json").read_text())
-for key in ("model", "resolved_model", "status", "executed_steps", "errors"):
-    print(f"{key}: {summary.get(key)}")
-chunks = sorted(episode.glob("chunk_*.json"))
-if chunks:
-    path = chunks[0]
-    chunk = json.loads(path.read_text())
-    obs = json.loads((episode / path.name.replace("chunk_", "observation_")).read_text())
-    print("Measured opening before chunk:", obs["gripper_open"])
-    print("First requested opening:", chunk["gripper_open"][0])
-    print("Returned actions:", len(chunk["sim_actions"]))
-    print("Simulated seconds per action:", chunk["action_dt_s"])
-    print("Request ID:", chunk["request_id"])
-else:
-    print("No action chunk was saved; check status and errors above.")
-PY
+```dotenv
+ROBOAPI_BASE_URL=<service-base-url>
+ROBOAPI_MODEL=<model-id>
 ```
 
-Find the same `request_id` in `events.jsonl`: its `execution_feedback` entry
-reports how many actions ran and whether the chunk completed. The next numbered
-observation shows the measured state after that chunk.
-`summary.json`'s `status` describes the API client lifecycle; task success is
-recorded in the run's `episode_results.jsonl`.
+Reload it with `set -a; source .env.local; set +a`, then rerun the episode
+command with a new `--output-folder-name`. An alias is pinned to one version when
+the session starts: compare `manifest.json`'s requested `model` with
+`summary.json`'s `resolved_model`.
 
-<a id="extending-the-integration"></a>
+### Adapt a different model interface
 
-## 🛠️ Extending the integration
+If your model takes other inputs or returns other actions, these are the places
+to change:
 
-**Try another model.** Set `ROBOAPI_MODEL` and, if needed, `ROBOAPI_BASE_URL` in
-`.env.local`, then reload it with `set -a; source .env.local; set +a` before
-launching a new process. Any endpoint that implements the
-[RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
-can be used. An alias is pinned to one version when the session starts: compare
-`manifest.json`'s requested `model` with `summary.json`'s `resolved_model`.
+| What changes | Start here |
+| --- | --- |
+| Fields sent to the model | `_extract_observation` in [`client.py`](policies/roboapi/client.py) |
+| Mapping returned actions to simulator actions | `_unpack_response` in [`client.py`](policies/roboapi/client.py) |
+| Requests, sessions and execution receipts | [`transport.py`](policies/roboapi/transport.py) |
+| Simulator observations and control | [`registration.py`](policies/roboapi/registration.py) |
 
-**Change the camera or gripper calibration.** Point `ROBOAPI_CALIBRATION` and
+Keep quaternion order, coordinate frames and the post-step acknowledgement
+consistent across those interfaces. Run the [offline checks](#tests):
+`test_roboapi_client.py` covers frame conversion and chunk execution,
+`test_roboapi_transport.py` covers sessions and receipts, and
+`test_roboapi_response.py` / `test_roboapi_gripper.py` cover gripper response
+and measured feedback. Changes to rendered views or physical tracking also need
+a simulator preflight and a new task run.
+
+### Change the rig configuration
+
+**Camera or gripper calibration.** Point `ROBOAPI_CALIBRATION` and
 `ROBOAPI_ACTUATOR` at your calibration files. A different camera assembly also
 needs `ROBOAPI_ASSEMBLY_USD` and `ROBOAPI_CAMERA_PRIM`. After reloading the
 configuration, rebuild with `"$ROBOAPI_PYTHON" -m policies.roboapi.build_asset`
 and repeat the preflight with a fresh output name. Check the wrist image,
 runtime camera transform and `gripper_validation` before starting a new episode.
 
-**Change the adapter.** Start at `client.py`'s `_extract_observation` and
-`_unpack_response` for data mapping, `transport.py` for the session protocol, and
-`registration.py` for simulator observations and control. Keep quaternion order,
-coordinate frames and the post-step acknowledgement consistent across those
-interfaces. Run the [offline checks](#tests): `test_roboapi_client.py` covers
-frame conversion and chunk execution, `test_roboapi_transport.py` covers sessions
-and receipts, and `test_roboapi_response.py` / `test_roboapi_gripper.py` cover
-gripper response and measured feedback. Changes to rendered views or physical
-tracking also need a simulator preflight and a new task run.
-
 <a id="tests"></a>
 
-**Run the offline checks.** Use a separate Python environment:
+### Run the offline checks
+
+Use a separate Python environment:
 
 ```bash
 python -m pip install -r requirements-roboapi-tests.txt
@@ -293,7 +335,8 @@ also exercise the gripper action buffers on CPU.
 
 ## 🙏 Acknowledgements and license
 
-Built on [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab), using its task
+This repository started as a fork of [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)
+and is maintained independently. It uses RoboLab's task
 definitions, episode loop and success checks unchanged. Policies are
 called through the [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) interface.
 The code is licensed under [Apache 2.0](LICENSE). Upstream history and NVIDIA
