@@ -17,11 +17,9 @@ adapter, a calibrated Franka/Robotiq assembly and a wrist fisheye camera.
 
 > Put the electronic devices in the grey bin
 
-[![The robot moves the grey bin, picks up the mouse and places it inside.](docs/media/roboapi/electronics-preview.gif)](docs/media/roboapi/electronics-full.mp4)
+![The robot moves the grey bin, picks up the mouse and places it inside.](docs/media/roboapi/electronics-preview.gif)
 
-The robot moves the bin, then picks up the mouse. This excerpt comes from a
-longer rollout that also handles the remote control and phone.
-[Full recording · MP4 · 79 s](docs/media/roboapi/electronics-full.mp4)
+The robot moves the bin, then picks up the mouse and places it inside.
 
 <table>
   <tr>
@@ -29,12 +27,12 @@ longer rollout that also handles the remote control and phone.
     <th width="50%">Turning a mug upright</th>
   </tr>
   <tr>
-    <td><a href="docs/media/roboapi/cube-stacking-full.mp4"><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="The robot stacks three Rubik's cubes, including its grasp adjustments." width="400" /></a></td>
-    <td><a href="docs/media/roboapi/mug-upright-full.mp4"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="400" /></a></td>
+    <td><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="The robot stacks three Rubik's cubes, including its grasp adjustments." width="400" /></td>
+    <td><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="400" /></td>
   </tr>
   <tr>
-    <td>“Stack the rubiks cubes in a tower”<br />Preview at 3× replay speed.<br /><a href="docs/media/roboapi/cube-stacking-full.mp4">Full recording · MP4 · 59 s</a></td>
-    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”<br /><a href="docs/media/roboapi/mug-upright-full.mp4">Full recording · MP4 · 8 s</a></td>
+    <td>“Stack the rubiks cubes in a tower”<br />Preview at 3× replay speed.</td>
+    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”</td>
   </tr>
 </table>
 

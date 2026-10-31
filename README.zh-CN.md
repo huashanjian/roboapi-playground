@@ -15,9 +15,9 @@
 
 > 将电子设备放进灰色收纳箱。
 
-[![机器人挪动灰色收纳箱，随后抓起鼠标并放入箱中。](docs/media/roboapi/electronics-preview.gif)](docs/media/roboapi/electronics-full.mp4)
+![机器人挪动灰色收纳箱，随后抓起鼠标并放入箱中。](docs/media/roboapi/electronics-preview.gif)
 
-机器人先挪动收纳箱，再抓起鼠标。这段节选来自一次连续操作回放，后续还会处理遥控器和手机。[完整录像 · MP4 · 79 秒](docs/media/roboapi/electronics-full.mp4)
+机器人先挪动收纳箱，再抓起鼠标并放入箱中。
 
 <table>
   <tr>
@@ -25,12 +25,12 @@
     <th width="50%">白杯翻正</th>
   </tr>
   <tr>
-    <td><a href="docs/media/roboapi/cube-stacking-full.mp4"><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="机器人堆叠三个魔方，保留抓取调整过程。" width="400" /></a></td>
-    <td><a href="docs/media/roboapi/mug-upright-full.mp4"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="机器人抓住侧倒的白杯，将杯口翻转朝上。" width="400" /></a></td>
+    <td><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="机器人堆叠三个魔方，保留抓取调整过程。" width="400" /></td>
+    <td><img src="docs/media/roboapi/mug-upright-preview.gif" alt="机器人抓住侧倒的白杯，将杯口翻转朝上。" width="400" /></td>
   </tr>
   <tr>
-    <td>“把魔方堆成一座塔。”<br />预览为录像的 3 倍速。<br /><a href="docs/media/roboapi/cube-stacking-full.mp4">完整录像 · MP4 · 59 秒</a></td>
-    <td>“让所有白杯直立，杯口朝上。”<br /><a href="docs/media/roboapi/mug-upright-full.mp4">完整录像 · MP4 · 8 秒</a></td>
+    <td>“把魔方堆成一座塔。”<br />预览为录像的 3 倍速。</td>
+    <td>“让所有白杯直立，杯口朝上。”</td>
   </tr>
 </table>
 
