@@ -19,14 +19,14 @@
 
 机器人先挪动收纳箱，再抓起鼠标并放入箱中。
 
-<table>
+<table width="100%">
   <tr>
     <th width="50%">三层魔方堆塔</th>
     <th width="50%">白杯翻正</th>
   </tr>
   <tr>
-    <td><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="机器人堆叠三个魔方，保留抓取调整过程。" width="400" /></td>
-    <td><img src="docs/media/roboapi/mug-upright-preview.gif" alt="机器人抓住侧倒的白杯，将杯口翻转朝上。" width="400" /></td>
+    <td width="50%"><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="机器人堆叠三个魔方，保留抓取调整过程。" width="100%" /></td>
+    <td width="50%"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="机器人抓住侧倒的白杯，将杯口翻转朝上。" width="100%" /></td>
   </tr>
   <tr>
     <td>“把魔方堆成一座塔。”<br />预览为录像的 3 倍速。</td>

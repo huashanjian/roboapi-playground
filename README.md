@@ -21,14 +21,14 @@ adapter, a calibrated Franka/Robotiq assembly and a wrist fisheye camera.
 
 The robot moves the bin, then picks up the mouse and places it inside.
 
-<table>
+<table width="100%">
   <tr>
     <th width="50%">Stacking three cubes</th>
     <th width="50%">Turning a mug upright</th>
   </tr>
   <tr>
-    <td><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="The robot stacks three Rubik's cubes, including its grasp adjustments." width="400" /></td>
-    <td><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="400" /></td>
+    <td width="50%"><img src="docs/media/roboapi/cube-stacking-preview.gif" alt="The robot stacks three Rubik's cubes, including its grasp adjustments." width="100%" /></td>
+    <td width="50%"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="100%" /></td>
   </tr>
   <tr>
     <td>“Stack the rubiks cubes in a tower”<br />Preview at 3× replay speed.</td>
