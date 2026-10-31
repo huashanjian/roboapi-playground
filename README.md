@@ -13,6 +13,8 @@ The simulation adapter sends the wrist image and measured robot state to the Rob
 executes the returned action chunks and logs every request, so you can open any
 episode and see what the policy saw and did.
 
+This repository started as a fork of NVIDIA RoboLab and is now maintained independently.
+
 [Demos](#demos) · [Try it out](#try-it-out) · [Codebase tour](#codebase-tour) · [Inspect a rollout](#inspecting-a-rollout) · [Extend](#extending-the-integration) · [Documentation](#documentation)
 
 <a id="demos"></a>
