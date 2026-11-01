@@ -9,12 +9,12 @@ Run Pokebot's Poke-Aurora through [RoboAPI](https://developers.pokebot.com/docs/
 on the 120 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks
 in Isaac Sim 5.1, with a calibrated Franka/Robotiq rig and a wrist fisheye camera.
 
-The policy receives the task instruction, one wrist RGB image, the measured
+The model receives the task instruction, one wrist RGB image, the measured
 flange pose and the gripper opening. The simulation adapter executes the returned
 action chunks and saves every observation, response and execution receipt, so you
-can open any episode and see what the policy saw and did.
+can open any episode and see what the model saw and did.
 
-[Demos](#demos) · [Try it out](#try-it-out) · [Inspect a rollout](#inspecting-a-rollout) · [Customize the integration](#customize-the-integration) · [How it works](#codebase-tour) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Inspect a rollout](#inspecting-a-rollout) · [How it works](#codebase-tour) · [Runs and evaluation](#runs-and-evaluation) · [Customize the integration](#customize-the-integration) · [Troubleshooting](#troubleshooting) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -44,26 +44,27 @@ Task: [`ElectronicsInBinTask`](robolab/tasks/benchmark/electronics_in_bin_task.p
   </tr>
 </table>
 
-### What the policy sees
+### What the model sees
 
 > Stack the white mugs on top of each other.
 
 ![Left, the wrist fisheye view; right, an external view of the same episode, as the robot stacks one white mug on another.](docs/media/roboapi/mug-stacking-wrist-preview.gif)
 
-Left: the wrist camera image the policy receives. Right: the same episode from
+Left: the wrist camera image the model receives. Right: the same episode from
 an external viewport. Preview at 4× replay speed.
 Task: [`StackWhiteMugsTask`](robolab/tasks/benchmark/stack_white_mugs_task.py);
-see [Run the mug-stacking task](#run-the-demo-tasks) for the command.
+[Try it out](#run-the-demo-tasks) runs this task as the first episode.
 
 Selected simulation rollouts. Simulated time pauses while each API request is in
 flight.
 
 <a id="try-it-out"></a>
 
-## 🛝 Try it out!
+## 🛝 Try it out
 
-You need **Python 3.11, Isaac Sim 5.1, Isaac Lab 2.3.2.post1** and a RoboAPI
-key; no physical robot is required.
+You need **Python 3.11, Isaac Sim 5.1, Isaac Lab 2.3.2.post1** and a
+[RoboAPI key](https://developers.pokebot.com/docs/roboapi/latest/cloud-console);
+no physical robot is required.
 Complete the [setup guide](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)
 once to install the [calibrated rig assets](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0),
 configure `.env.local` and build the robot. The Panda geometry and benchmark
@@ -80,41 +81,30 @@ policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
 Open `output/roboapi_preflight/wrist_initial.png` to check the wrist view.
 `preflight.json` in the same directory holds the robot, gripper and camera checks.
 
-Then run one episode:
-
-```bash
-policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
-  --output-folder-name roboapi_single
-```
-
-The episode writes to `output/roboapi_single/`; [Inspecting a rollout](#inspecting-a-rollout)
-shows what to open first. More tasks are listed in the
-[RoboLab task catalog](robolab/tasks/README.md).
-
-Keep `--task` and `--num-runs` explicit for a short trial. If both are omitted,
-the runner starts a full evaluation: all 120 tasks, 10 episodes each.
-
 <a id="run-the-demo-tasks"></a>
 
-### Run the mug-stacking task
-
-This command runs one mug-stacking episode with your configured model:
+Then run one episode of the mug-stacking task from the demos:
 
 ```bash
-policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name mug_example
+policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 \
+  --output-folder-name mug_example
 ```
 
-The run writes to `output/mug_example/`. Episodes already completed in a
-directory are skipped, so pick a new name when you change the model or
-calibration. To run another demo, replace `StackWhiteMugsTask` with the task
-name shown under it.
+The episode writes to `output/mug_example/`; [Inspecting a rollout](#inspecting-a-rollout)
+shows what to open first. To run another demo, replace `StackWhiteMugsTask` with
+the task name shown under it. More tasks are listed in the
+[RoboLab task catalog](robolab/tasks/README.md).
+
+Episodes already completed in a directory are skipped, so pick a new
+`--output-folder-name` when you change the model or calibration. Keep `--task`
+and `--num-runs` explicit for a short trial. If both are omitted, the runner
+starts a full evaluation: all 120 tasks, 10 episodes each.
 
 <a id="inspecting-a-rollout"></a>
 
 ## 🔬 Inspecting a rollout
 
-After running the mug-stacking task, open
+After the first episode, open
 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`.
 This is the wrist image sent on the first query. Next to it:
 
@@ -164,14 +154,14 @@ recorded in the run's `episode_results.jsonl`.
 
 ## 🗺️ How it works
 
-The simulation adapter sends RoboLab observations to the RoboAPI service, maps the
-returned actions into simulator coordinates and reports their execution:
+The simulation adapter sends RoboLab observations to Poke-Aurora through RoboAPI,
+maps the returned actions into simulator coordinates and reports their execution:
 
 <p align="center">
-  <img src="docs/media/roboapi/integration-flow.png" alt="The simulation adapter sends RoboLab observations and execution receipts to the external RoboAPI policy service, then maps and executes returned action chunks in the simulator." width="960" />
+  <img src="docs/media/roboapi/integration-flow.png" alt="The simulation adapter sends RoboLab observations and execution receipts to the Poke-Aurora model service through RoboAPI, then maps and executes returned action chunks in the simulator." width="960" />
 </p>
 
-The policy sees only the wrist image, the instruction and the measured state,
+The model sees only the wrist image, the instruction and the measured state,
 and returns an action chunk. [`client.py`](policies/roboapi/client.py) packs and
 unpacks them as follows:
 
@@ -180,7 +170,7 @@ unpacks them as follows:
 | Wrist image | One 360 × 640 × 3 `uint8` RGB image, encoded as a PNG data URL |
 | Instruction | The task's text instruction |
 | Measured state | `tool0` (flange centre) position in metres, orientation and gripper opening ratio |
-| Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` on the API wire |
+| Returned action chunk | K × 8 values: `[x, y, z, qx, qy, qz, qw, gripper]` in the API response |
 
 Each action is an **absolute** tool pose plus an opening ratio (`0` closed,
 `1` open), as defined by the [RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract).
@@ -323,7 +313,7 @@ also exercise the gripper action buffers on CPU.
 
 This repository started as a fork of [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)
 and is maintained independently. It uses RoboLab's task
-definitions, episode loop and success checks unchanged. Policies are
+definitions, episode loop and success checks unchanged. Poke-Aurora is
 called through the [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) interface.
 The code is licensed under [Apache 2.0](LICENSE). Upstream history and NVIDIA
 copyright notices are retained. Robot, tool and benchmark assets retain their

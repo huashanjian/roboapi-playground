@@ -76,16 +76,18 @@ mkdir -p "$(dirname "$ROBOAPI_TOKEN_FILE")"
 chmod 700 "$(dirname "$ROBOAPI_TOKEN_FILE")"
 ```
 
-Save your API key in the file named by `ROBOAPI_TOKEN_FILE`, then make the file
+Create a key in the Developer Console, as described in
+[Account and API keys](https://developers.pokebot.com/docs/roboapi/latest/cloud-console).
+Save it in the file named by `ROBOAPI_TOKEN_FILE`, then make the file
 owner-readable only and run the episode:
 
 ```bash
 chmod 600 "$ROBOAPI_TOKEN_FILE"
-policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
-  --output-folder-name roboapi_single
+policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 \
+  --output-folder-name mug_example
 ```
 
-Outputs are saved under `output/roboapi_single/`. The launcher uses
+Outputs are saved under `output/mug_example/`. The launcher uses
 `ROBOAPI_PYTHON`; reload `.env.local` before starting a new process after changing
 its settings. See [Protocol and evaluation](evaluation.md) for the observations,
 actions and evaluation conditions, or [Complete evaluation tools](evaluation.md#complete-evaluation-tools)

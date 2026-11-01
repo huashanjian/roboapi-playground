@@ -7,9 +7,9 @@
 
 在 Isaac Sim 5.1 中通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 调用破壳的 Poke-Aurora，运行 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 的 120 个操作任务。机器人为经过标定的 Franka/Robotiq 构型，配腕部鱼眼相机。
 
-策略收到任务指令、一张腕部 RGB 图像、实测的法兰位姿和夹爪开口。仿真适配层执行返回的动作块，并保存每一次观测、响应和执行回执。打开任意一个回合，都能看到策略收到了什么、做了什么。
+模型收到任务指令、一张腕部 RGB 图像、实测的法兰位姿和夹爪开口。仿真适配层执行返回的动作块，并保存每一次观测、响应和执行回执。打开任意一个回合，都能看到模型收到了什么、做了什么。
 
-[任务演示](#任务演示) · [动手试试](#动手试试) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [工作原理](#代码导览) · [文档导航](#文档导航)
+[任务演示](#任务演示) · [动手试试](#动手试试) · [查看一个回合](#查看一个回合) · [工作原理](#代码导览) · [运行记录与评测](#运行记录与评测) · [修改与扩展](#修改与扩展) · [排错](#排错) · [文档导航](#文档导航)
 
 <a id="任务演示"></a>
 
@@ -38,13 +38,13 @@
   </tr>
 </table>
 
-### 策略看到的画面
+### 模型看到的画面
 
 > 把白杯叠放在一起。
 
 ![左为腕部鱼眼画面，右为同一回合的外部视角，机器人把一只白杯叠到另一只上。](docs/media/roboapi/mug-stacking-wrist-preview.gif)
 
-左：策略收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。任务：[`StackWhiteMugsTask`](robolab/tasks/benchmark/stack_white_mugs_task.py)，运行命令见[运行叠杯任务](#运行演示任务)。
+左：模型收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。任务：[`StackWhiteMugsTask`](robolab/tasks/benchmark/stack_white_mugs_task.py)，[动手试试](#运行演示任务)中的第一个回合运行的就是这个任务。
 
 以上为仿真回放节选。每次 API 请求进行期间，仿真时间暂停。
 
@@ -52,7 +52,7 @@
 
 ## 🛝 动手试试
 
-需要 **Python 3.11、Isaac Sim 5.1、Isaac Lab 2.3.2.post1** 和一个 RoboAPI 密钥，不需要实体机器人。按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)完成一次安装：安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。Panda 几何文件和基准场景另行安装，详见[所需资产](docs/roboapi/setup.md#required-assets)。
+需要 **Python 3.11、Isaac Sim 5.1、Isaac Lab 2.3.2.post1** 和一个 [RoboAPI 密钥](https://developers.pokebot.com/zh/docs/roboapi/latest/cloud-console)，不需要实体机器人。按照[安装指南](docs/roboapi/setup.md#from-a-fresh-clone-to-your-first-episode)完成一次安装：安装[标定资产包](https://github.com/huashanjian/roboapi-playground/releases/tag/roboapi-rig-v1.0.0)，配置 `.env.local` 并构建机器人。Panda 几何文件和基准场景另行安装，详见[所需资产](docs/roboapi/setup.md#required-assets)。
 
 在仓库根目录执行预检查，确认机器人、夹爪与相机工作正常。这一步不调用模型：
 
@@ -63,35 +63,24 @@ policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
 
 打开 `output/roboapi_preflight/wrist_initial.png` 检查腕部画面；同一目录下的 `preflight.json` 保存机器人、夹爪和相机的检查结果。
 
-然后运行一个回合：
-
-```bash
-policies/roboapi/run.sh --task BananaOnPlateTask --num-runs 1 \
-  --output-folder-name roboapi_single
-```
-
-回合产物保存在 `output/roboapi_single/`，先看哪些文件见[查看一个回合](#查看一个回合)。其他任务见 [RoboLab 任务目录](robolab/tasks/README.md)。
-
-短时间试运行时，显式指定 `--task` 和 `--num-runs`。两者都省略时，运行器会启动完整评测：全部 120 个任务，每个任务 10 个回合。
-
 <a id="运行演示任务"></a>
 
-### 运行叠杯任务
-
-以下命令以当前配置的模型运行一个叠杯回合：
+然后运行一个回合，任务是演示中的叠杯：
 
 ```bash
-policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
-  --model "$ROBOAPI_MODEL" --output-folder-name mug_example
+policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 \
+  --output-folder-name mug_example
 ```
 
-结果保存在 `output/mug_example/`。同一目录中已完成的回合会被跳过，更换模型或标定配置时请换一个目录名。运行其他演示任务时，把 `StackWhiteMugsTask` 换成演示下方标注的任务名。
+回合产物保存在 `output/mug_example/`，先看哪些文件见[查看一个回合](#查看一个回合)。运行其他演示任务时，把 `StackWhiteMugsTask` 换成演示下方标注的任务名。其他任务见 [RoboLab 任务目录](robolab/tasks/README.md)。
+
+同一目录中已完成的回合会被跳过，更换模型或标定配置时，请换一个 `--output-folder-name`。短时间试运行时，显式指定 `--task` 和 `--num-runs`。两者都省略时，运行器会启动完整评测：全部 120 个任务，每个任务 10 个回合。
 
 <a id="查看一个回合"></a>
 
 ## 🔬 查看一个回合
 
-运行叠杯任务后，打开 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同一目录下：
+第一个回合结束后，打开 `output/mug_example/StackWhiteMugsTask/run_0_api/observation_0000.png`，这就是第一次查询时发给模型的腕部图像。同一目录下：
 
 - `observation_0000.json`：任务指令、实测位姿（`pose_wxyz`、`native_tool_pose_wxyz`）和 `gripper_open`。
 - `chunk_0000.json`：针对这次观测返回的动作，以及转换后的仿真指令。
@@ -133,20 +122,20 @@ PY
 
 ## 🗺️ 工作原理
 
-仿真适配层向 RoboAPI 服务发送 RoboLab 观测，把返回的动作转换到仿真坐标系，并反馈执行情况：
+仿真适配层通过 RoboAPI 向 Poke-Aurora 发送 RoboLab 观测，把返回的动作转换到仿真坐标系，并反馈执行情况：
 
 <p align="center">
-  <img src="docs/media/roboapi/integration-flow.zh-CN.png" alt="仿真适配层向外部 RoboAPI 策略服务发送 RoboLab 观测及执行回执，再将返回的动作块转换并执行于仿真环境。" width="960" />
+  <img src="docs/media/roboapi/integration-flow.zh-CN.png" alt="仿真适配层通过 RoboAPI 向 Poke-Aurora 模型服务发送 RoboLab 观测及执行回执，再将返回的动作块转换后在仿真环境中执行。" width="960" />
 </p>
 
-策略只看到腕部图像、指令和实测状态，并返回一个动作块。[`client.py`](policies/roboapi/client.py) 按下表打包和解析这些数据：
+模型只看到腕部图像、指令和实测状态，并返回一个动作块。[`client.py`](policies/roboapi/client.py) 按下表打包和解析这些数据：
 
 | 数据 | 表示方式 |
 | --- | --- |
 | 腕部图像 | 一张 360 × 640 × 3 的 `uint8` RGB 图像，编码为 PNG data URL |
 | 指令 | 任务的文字指令 |
 | 实测状态 | `tool0`（法兰中心）位置（米）、姿态与夹爪开口比例 |
-| 返回的动作块 | K × 8 个数值，API 传输顺序为 `[x, y, z, qx, qy, qz, qw, gripper]` |
+| 返回的动作块 | K × 8 个数值，API 响应中的顺序为 `[x, y, z, qx, qy, qz, qw, gripper]` |
 
 按照 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开），K 由服务端决定。适配器内部的位姿和归档的 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
 
@@ -250,7 +239,7 @@ scripts/test_roboapi.sh
 
 ## 🙏 致谢与许可证
 
-本仓库最初从 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 分出，现在独立维护，原样使用其任务定义、回合执行流程和成功判定，并通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用机器人策略。
+本仓库最初从 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 分出，现在独立维护，原样使用其任务定义、回合执行流程和成功判定，并通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 接口调用 Poke-Aurora。
 
 代码采用 [Apache 2.0 许可证](LICENSE)，保留上游历史与 NVIDIA 版权声明。机器人、工具和基准资产各自遵循其原有许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 
