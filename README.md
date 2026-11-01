@@ -5,17 +5,16 @@
 [![RoboAPI offline checks](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![Code license](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-Run [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest) policies, such as
-Pokebot's Poke-Aurora, on the 120 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab)
-manipulation tasks in Isaac Sim 5.1, with a calibrated Franka/Robotiq rig and a
-wrist fisheye camera.
+Run Pokebot's Poke-Aurora through [RoboAPI](https://developers.pokebot.com/docs/roboapi/latest)
+on the 120 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) manipulation tasks
+in Isaac Sim 5.1, with a calibrated Franka/Robotiq rig and a wrist fisheye camera.
 
 The policy receives the task instruction, one wrist RGB image, the measured
 flange pose and the gripper opening. The simulation adapter executes the returned
 action chunks and saves every observation, response and execution receipt, so you
 can open any episode and see what the policy saw and did.
 
-[Demos](#demos) · [Try it out](#try-it-out) · [Inspect a rollout](#inspecting-a-rollout) · [Connect your own model](#connect-your-own-model) · [How it works](#codebase-tour) · [Documentation](#documentation)
+[Demos](#demos) · [Try it out](#try-it-out) · [Inspect a rollout](#inspecting-a-rollout) · [Customize the integration](#customize-the-integration) · [How it works](#codebase-tour) · [Documentation](#documentation)
 
 <a id="demos"></a>
 
@@ -250,18 +249,16 @@ schedule every task and collect the results. When comparing with other RoboLab
 results, report the [evaluation conditions](docs/roboapi/evaluation.md#evaluation-conditions).
 
 <a id="extending-the-integration"></a>
-<a id="connect-your-own-model"></a>
+<a id="customize-the-integration"></a>
 
-## 🛠️ Connect your own model
+## 🛠️ Customize the integration
 
-### Use a RoboAPI-compatible service
+### Choose the model version
 
-Any service that implements the
-[RoboAPI model API](https://developers.pokebot.com/docs/roboapi/latest/model-contract)
-needs only a configuration change. Set the endpoint and model ID in `.env.local`:
+The default model is `poke-aurora-preview`. To use another model ID or version,
+set it in `.env.local`:
 
 ```dotenv
-ROBOAPI_BASE_URL=<service-base-url>
 ROBOAPI_MODEL=<model-id>
 ```
 
@@ -270,10 +267,10 @@ command with a new `--output-folder-name`. An alias is pinned to one version whe
 the session starts: compare `manifest.json`'s requested `model` with
 `summary.json`'s `resolved_model`.
 
-### Adapt a different model interface
+### Change what the adapter sends and executes
 
-If your model takes other inputs or returns other actions, these are the places
-to change:
+To change the fields sent to the model or how returned actions are executed,
+start from these places:
 
 | What changes | Start here |
 | --- | --- |

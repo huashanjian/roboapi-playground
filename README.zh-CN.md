@@ -5,11 +5,11 @@
 [![RoboAPI 离线检查状态](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml/badge.svg?branch=main)](https://github.com/huashanjian/roboapi-playground/actions/workflows/roboapi.yml?query=branch%3Amain)
 [![代码许可证](https://img.shields.io/github/license/huashanjian/roboapi-playground)](LICENSE)
 
-在 Isaac Sim 5.1 中用 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 策略（例如破壳的 Poke-Aurora）运行 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 的 120 个操作任务。机器人为经过标定的 Franka/Robotiq 构型，配腕部鱼眼相机。
+在 Isaac Sim 5.1 中通过 [RoboAPI](https://developers.pokebot.com/zh/docs/roboapi/latest) 调用破壳的 Poke-Aurora，运行 [NVIDIA RoboLab](https://github.com/NVLabs/RoboLab) 的 120 个操作任务。机器人为经过标定的 Franka/Robotiq 构型，配腕部鱼眼相机。
 
 策略收到任务指令、一张腕部 RGB 图像、实测的法兰位姿和夹爪开口。仿真适配层执行返回的动作块，并保存每一次观测、响应和执行回执。打开任意一个回合，都能看到策略收到了什么、做了什么。
 
-[任务演示](#任务演示) · [动手试试](#动手试试) · [查看一个回合](#查看一个回合) · [接入自己的模型](#接入自己的模型) · [工作原理](#代码导览) · [文档导航](#文档导航)
+[任务演示](#任务演示) · [动手试试](#动手试试) · [查看一个回合](#查看一个回合) · [修改与扩展](#修改与扩展) · [工作原理](#代码导览) · [文档导航](#文档导航)
 
 <a id="任务演示"></a>
 
@@ -198,24 +198,22 @@ T_robot_tool0 = Rz(+90°) @ T_policy
 运行器覆盖全部 **120 个 RoboLab 任务定义**。每回合最长 **120 秒仿真时间**、最多 **90 个动作块**，判定成功时提前结束。用[完整评测工具](docs/roboapi/evaluation.md#complete-evaluation-tools)可以调度全部任务并汇总结果；与其他 RoboLab 结果对比时，请注明[评测条件](docs/roboapi/evaluation.md#evaluation-conditions)。
 
 <a id="修改与扩展"></a>
-<a id="接入自己的模型"></a>
 
-## 🛠️ 接入自己的模型
+## 🛠️ 修改与扩展
 
-### 使用兼容 RoboAPI 的服务
+### 选择模型版本
 
-实现了 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)的服务，只需修改配置。在 `.env.local` 中设置服务地址和模型 ID：
+默认模型为 `poke-aurora-preview`。要使用其他模型 ID 或版本，在 `.env.local` 中设置：
 
 ```dotenv
-ROBOAPI_BASE_URL=<service-base-url>
 ROBOAPI_MODEL=<model-id>
 ```
 
 执行 `set -a; source .env.local; set +a` 重新加载，再用新的 `--output-folder-name` 运行回合命令。使用模型别名时，会话在创建时固定一个实际版本，可对照 `manifest.json` 中请求的 `model` 与 `summary.json` 中的 `resolved_model`。
 
-### 适配其他模型接口
+### 修改适配层
 
-模型的输入或输出不同时，从下表的位置改起：
+要修改发给模型的字段，或返回动作的执行方式，从下表的位置改起：
 
 | 要改什么 | 从哪里开始 |
 | --- | --- |
