@@ -27,6 +27,7 @@ can open any episode and see what the policy saw and did.
 ![The robot moves the grey bin, picks up the mouse and places it inside.](docs/media/roboapi/electronics-preview.gif)
 
 The robot moves the bin, then picks up the mouse and places it inside.
+Task: [`ElectronicsInBinTask`](robolab/tasks/benchmark/electronics_in_bin_task.py).
 
 <table width="100%">
   <tr>
@@ -38,8 +39,8 @@ The robot moves the bin, then picks up the mouse and places it inside.
     <td width="50%"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="The robot grasps a sideways white mug and turns its opening upwards." width="100%" /></td>
   </tr>
   <tr>
-    <td>“Stack the rubiks cubes in a tower”<br />The robot stacks three Rubik's cubes, adjusting its grasp between placements. Preview at 3× replay speed.</td>
-    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”<br />The robot grasps the sideways white mug and turns its opening upwards.</td>
+    <td>“Stack the rubiks cubes in a tower”<br />The robot stacks three Rubik's cubes, adjusting its grasp between placements. Preview at 3× replay speed.<br />Task: <a href="robolab/tasks/benchmark/rubiks_cube_stacking_task.py"><code>Stack3RubiksCubeTask</code></a></td>
+    <td>“Make sure all the white mugs are upright so that the opening is facing upwards.”<br />The robot grasps the sideways white mug and turns its opening upwards.<br />Task: <a href="robolab/tasks/benchmark/reorient_white_mugs.py"><code>ReorientWhiteMugsTask</code></a></td>
   </tr>
 </table>
 
@@ -50,8 +51,9 @@ The robot moves the bin, then picks up the mouse and places it inside.
 ![Left, the wrist fisheye view; right, an external view of the same episode, as the robot stacks one white mug on another.](docs/media/roboapi/mug-stacking-wrist-preview.gif)
 
 Left: the wrist camera image the policy receives. Right: the same episode from
-an external viewport. Preview at 4× replay speed. To run this task yourself, see
-[Run the mug-stacking task](#run-the-demo-tasks).
+an external viewport. Preview at 4× replay speed.
+Task: [`StackWhiteMugsTask`](robolab/tasks/benchmark/stack_white_mugs_task.py);
+see [Run the mug-stacking task](#run-the-demo-tasks) for the command.
 
 Selected simulation rollouts. Simulated time pauses while each API request is in
 flight.
@@ -105,7 +107,8 @@ policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
 
 The run writes to `output/mug_example/`. Episodes already completed in a
 directory are skipped, so pick a new name when you change the model or
-calibration.
+calibration. To run another demo, replace `StackWhiteMugsTask` with the task
+name shown under it.
 
 <a id="inspecting-a-rollout"></a>
 
@@ -184,6 +187,19 @@ Each action is an **absolute** tool pose plus an opening ratio (`0` closed,
 The server chooses K. Inside the adapter, poses and archived `sim_actions` use
 quaternion order **WXYZ**; `transport.py` converts to and from the API's **XYZW**.
 
+<a id="design-notes"></a>
+<a id="integration-notes"></a>
+
+Target poses apply to `tool0` at the flange centre. The policy frame shares the
+robot base origin and differs from it by 90° about Z; the
+[control notes](docs/roboapi/control.md) give the mapping. The runner executes a
+chunk row by row at 30 Hz, so a 12-row chunk covers 0.4 s of simulated time.
+It then sends a fresh observation with a receipt for the rows that ran; the
+session protocol is in [protocol and evaluation](docs/roboapi/evaluation.md).
+The wrist image is rendered with the rig's fisheye optics and sent as rendered.
+Gripper delay and speed limits come from the actuator calibration; field formats
+are in the [asset input contract](docs/roboapi/setup.md#input-contract).
+
 | File | What to look for |
 | --- | --- |
 | [`run.py`](policies/roboapi/run.py) | Preflight, episode execution and run manifests |
@@ -194,33 +210,6 @@ quaternion order **WXYZ**; `transport.py` converts to and from the API's **XYZW*
 | [`camera.py`](policies/roboapi/camera.py) | Fisheye optics, rendering settings and runtime checks |
 | [`arm_action.py`](policies/roboapi/arm_action.py) | Arm IK, tool0 Jacobian correction and tool load compensation |
 | [`gripper_response.py`](policies/roboapi/gripper_response.py) | Gripper delay, response limits and measurement sampling |
-
-<a id="design-notes"></a>
-<a id="integration-notes"></a>
-
-### How the pieces fit
-
-**Poses.** Target poses from the API apply to `tool0` at the flange centre.
-The policy frame shares the robot base origin, rotated about Z:
-
-```text
-T_policy = Rz(-90°) @ T_robot_tool0
-T_robot_tool0 = Rz(+90°) @ T_policy
-```
-
-For example, position `(0.3, 0.1, 0.4)` m in the robot frame is
-`(0.1, -0.3, 0.4)` m in the policy frame. The tool mount, IK and load
-compensation are described in the [control notes](docs/roboapi/control.md).
-
-**Chunks.** The runner executes a returned chunk row by row at **30 Hz**, with
-eight **240 Hz** physics steps per row, then sends a fresh observation together
-with an execution receipt for the rows that ran. A 12-row chunk covers 0.4 s of
-simulated time. The session protocol is in [protocol and evaluation](docs/roboapi/evaluation.md).
-
-**Calibration.** The camera renders with the rig's native F-theta fisheye optics,
-and the adapter sends that image as rendered. Gripper delay, cadence and speed
-limits come from the actuator calibration; observations report the measured
-opening. Field formats are listed in the [asset input contract](docs/roboapi/setup.md#input-contract).
 
 <a id="runs-and-evaluation"></a>
 

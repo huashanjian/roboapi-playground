@@ -21,7 +21,7 @@
 
 ![机器人挪动灰色收纳箱，随后抓起鼠标并放入箱中。](docs/media/roboapi/electronics-preview.gif)
 
-机器人先挪动收纳箱，再抓起鼠标并放入箱中。
+机器人先挪动收纳箱，再抓起鼠标并放入箱中。任务：[`ElectronicsInBinTask`](robolab/tasks/benchmark/electronics_in_bin_task.py)。
 
 <table width="100%">
   <tr>
@@ -33,8 +33,8 @@
     <td width="50%"><img src="docs/media/roboapi/mug-upright-preview.gif" alt="机器人抓住侧倒的白杯，将杯口翻转朝上。" width="100%" /></td>
   </tr>
   <tr>
-    <td>“把魔方堆成一座塔。”<br />机器人把三个魔方堆成塔，放置之间会调整抓取。预览为录像的 3 倍速。</td>
-    <td>“让所有白杯直立，杯口朝上。”<br />机器人抓住侧倒的白杯，将杯口翻转朝上。</td>
+    <td>“把魔方堆成一座塔。”<br />机器人把三个魔方堆成塔，放置之间会调整抓取。预览为录像的 3 倍速。<br />任务：<a href="robolab/tasks/benchmark/rubiks_cube_stacking_task.py"><code>Stack3RubiksCubeTask</code></a></td>
+    <td>“让所有白杯直立，杯口朝上。”<br />机器人抓住侧倒的白杯，将杯口翻转朝上。<br />任务：<a href="robolab/tasks/benchmark/reorient_white_mugs.py"><code>ReorientWhiteMugsTask</code></a></td>
   </tr>
 </table>
 
@@ -44,7 +44,7 @@
 
 ![左为腕部鱼眼画面，右为同一回合的外部视角，机器人把一只白杯叠到另一只上。](docs/media/roboapi/mug-stacking-wrist-preview.gif)
 
-左：策略收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。想自己运行这个任务，见[运行叠杯任务](#运行演示任务)。
+左：策略收到的腕部相机画面。右：同一回合的外部视角。预览为录像的 4 倍速。任务：[`StackWhiteMugsTask`](robolab/tasks/benchmark/stack_white_mugs_task.py)，运行命令见[运行叠杯任务](#运行演示任务)。
 
 以上为仿真回放节选。每次 API 请求进行期间，仿真时间暂停。
 
@@ -85,7 +85,7 @@ policies/roboapi/run.sh --task StackWhiteMugsTask --num-runs 1 --seed 0 \
   --model "$ROBOAPI_MODEL" --output-folder-name mug_example
 ```
 
-结果保存在 `output/mug_example/`。同一目录中已完成的回合会被跳过，更换模型或标定配置时请换一个目录名。
+结果保存在 `output/mug_example/`。同一目录中已完成的回合会被跳过，更换模型或标定配置时请换一个目录名。运行其他演示任务时，把 `StackWhiteMugsTask` 换成演示下方标注的任务名。
 
 <a id="查看一个回合"></a>
 
@@ -150,6 +150,11 @@ PY
 
 按照 [RoboAPI 模型接口协议](https://developers.pokebot.com/zh/docs/roboapi/latest/model-contract)，每个动作给出工具的**绝对位姿**和夹爪开口比例（`0` 为闭合，`1` 为张开），K 由服务端决定。适配器内部的位姿和归档的 `sim_actions` 使用 **WXYZ** 四元数顺序，`transport.py` 负责与 API 的 **XYZW** 顺序互相转换。
 
+<a id="设计说明"></a>
+<a id="接入说明"></a>
+
+目标位姿作用于法兰中心的 `tool0`。策略坐标系与机器人基坐标系原点相同，两者绕 Z 轴相差 90°，换算方式见[控制说明](docs/roboapi/control.md)。运行器以 30 Hz 逐行执行动作块，一个 12 行的动作块对应 0.4 秒仿真时间。执行完毕后，运行器发送新观测，并附上已执行行数的回执，会话协议见[协议与评测](docs/roboapi/evaluation.md)。腕部图像按资产包中的鱼眼参数渲染后直接发送；夹爪的延迟和速度限制来自执行器标定，字段格式见[资产输入约定](docs/roboapi/setup.md#input-contract)。
+
 | 文件 | 对应实现 |
 | --- | --- |
 | [`run.py`](policies/roboapi/run.py) | 预检查、回合执行与运行配置记录 |
@@ -160,24 +165,6 @@ PY
 | [`camera.py`](policies/roboapi/camera.py) | 鱼眼相机模型、渲染设置与运行时检查 |
 | [`arm_action.py`](policies/roboapi/arm_action.py) | 机械臂逆运动学、tool0 雅可比修正和工具负载补偿 |
 | [`gripper_response.py`](policies/roboapi/gripper_response.py) | 夹爪延迟、响应限制和测量采样 |
-
-<a id="设计说明"></a>
-<a id="接入说明"></a>
-
-### 各部分如何衔接
-
-**位姿。** API 给出的目标位姿作用于法兰中心的 `tool0`。策略坐标系与机器人基坐标系原点重合，绕 Z 轴旋转：
-
-```text
-T_policy = Rz(-90°) @ T_robot_tool0
-T_robot_tool0 = Rz(+90°) @ T_policy
-```
-
-例如，机器人坐标系中的位置 `(0.3, 0.1, 0.4)` 米，在策略坐标系中为 `(0.1, -0.3, 0.4)` 米。工具安装、逆运动学和负载补偿见[控制说明](docs/roboapi/control.md)。
-
-**动作块。** 运行器以 **30 Hz** 逐行执行返回的动作块，每行推进八个 **240 Hz** 物理步；执行完毕后发送新观测，并附上已执行行数的回执。一个 12 行的动作块对应 0.4 秒仿真时间。会话协议见[协议与评测](docs/roboapi/evaluation.md)。
-
-**标定。** 相机使用资产包中的原生 F-theta 鱼眼光学参数渲染，适配器直接发送渲染出的图像。夹爪的延迟、更新周期和速度限制来自执行器标定，观测上报测得的开口比例。字段格式见[资产输入约定](docs/roboapi/setup.md#input-contract)。
 
 <a id="运行记录与评测"></a>
 
